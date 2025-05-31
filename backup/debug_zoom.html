@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom Debug Test</title>
+    <style>
+        .test-container {
+            width: 400px;
+            height: 300px;
+            border: 2px solid #333;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            overflow: visible;
+        }
+        
+        .test-image {
+            max-width: 200px;
+            max-height: 200px;
+            border: 2px solid #666;
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+        }
+        
+        .test-image.zoomed {
+            transform: scale(2);
+            cursor: grab;
+            z-index: 10;
+        }
+        
+        .test-image.zoomed.dragging {
+            cursor: grabbing;
+            transition: none;
+        }
+        
+        .debug-log {
+            margin: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Zoom and Drag Debug Test</h1>
+    
+    <div class="test-container">
+        <img class="test-image" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmZmYiLz4KPHN0cm9rZSB3aWR0aD0iMjAiIGZpbGw9IiNlZWUiLz4KPHN0cm9rZSB3aWR0aD0iMTUiIGZpbGw9IiNkZGQiLz4KPHN0cm9rZSB3aWR0aD0iMTAiIGZpbGw9IiNjY2MiLz4KPHN0cm9rZSB3aWR0aD0iNSIgZmlsbD0iI2FhYSIvPgo8dGV4dCB4PSI1MCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiMzMzMiPlRlc3QgSW1hZ2U8L3RleHQ+Cjx0ZXh0IHg9IjQwIiB5PSIxMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NiI+Q2xpY2sgdG8gWm9vbTwvdGV4dD4KPHN0cm9rZSB3aWR0aD0iNSIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4=" alt="Test Image">
+    </div>
+    
+    <div class="debug-log" id="debugLog">
+        Debug Log:<br>
+    </div>
+    
+    <button onclick="clearLog()">Clear Log</button>
+    <button onclick="testElements()">Test Elements</button>
+    
+    <script>
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let currentX = 0, currentY = 0;
+        
+        function log(message) {
+            const debugLog = document.getElementById('debugLog');
+            debugLog.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('debugLog').innerHTML = 'Debug Log:<br>';
+        }
+        
+        function testElements() {
+            const img = document.querySelector('.test-image');
+            log('Image element found: ' + (img ? 'YES' : 'NO'));
+            log('Image classes: ' + (img ? img.className : 'N/A'));
+            log('Image cursor: ' + (img ? getComputedStyle(img).cursor : 'N/A'));
+        }
+        
+        function setupZoomAndDrag() {
+            const img = document.querySelector('.test-image');
+            if (!img) {
+                log('ERROR: Image element not found!');
+                return;
+            }
+            
+            log('Setting up zoom and drag for image');
+            
+            // Click to zoom
+            img.addEventListener('click', function(e) {
+                log('Click detected on image');
+                e.preventDefault();
+                
+                if (img.classList.contains('zoomed')) {
+                    log('Zooming out');
+                    img.classList.remove('zoomed', 'dragging');
+                    img.style.transform = '';
+                    currentX = 0;
+                    currentY = 0;
+                } else {
+                    log('Zooming in');
+                    img.classList.add('zoomed');
+                    img.style.transform = 'scale(2)';
+                }
+            });
+            
+            // Mouse down for drag
+            img.addEventListener('mousedown', function(e) {
+                log('Mouse down on image, zoomed: ' + img.classList.contains('zoomed'));
+                
+                if (img.classList.contains('zoomed')) {
+                    e.preventDefault();
+                    isDragging = true;
+                    img.classList.add('dragging');
+                    
+                    startX = e.clientX - currentX;
+                    startY = e.clientY - currentY;
+                    
+                    log('Started dragging: startX=' + startX + ', startY=' + startY);
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                }
+            });
+            
+            function handleMouseMove(e) {
+                if (!isDragging) return;
+                
+                e.preventDefault();
+                currentX = e.clientX - startX;
+                currentY = e.clientY - startY;
+                
+                const transform = `scale(2) translate(${currentX/2}px, ${currentY/2}px)`;
+                img.style.transform = transform;
+                
+                log('Dragging: x=' + currentX + ', y=' + currentY);
+            }
+            
+            function handleMouseUp(e) {
+                if (!isDragging) return;
+                
+                log('Mouse up - stopping drag');
+                isDragging = false;
+                img.classList.remove('dragging');
+                
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+            
+            log('Event listeners attached to image');
+        }
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM loaded, setting up zoom and drag');
+            setupZoomAndDrag();
+            testElements();
+        });
+    </script>
+</body>
+</html>

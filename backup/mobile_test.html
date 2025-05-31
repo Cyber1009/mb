@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mobile Touch Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        .test-area {
+            background: white;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .test-image {
+            width: 100%;
+            max-width: 300px;
+            height: 200px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+        
+        .test-image.zoomed {
+            transform: scale(2);
+            z-index: 10;
+            cursor: grab;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .test-image.zoomed.dragging {
+            cursor: grabbing;
+            transition: none;
+        }
+        
+        .debug-info {
+            background: #333;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            min-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        .button:hover {
+            background: #0056b3;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 Mobile Touch & Zoom Test</h1>
+    
+    <div class="status info" id="deviceInfo">
+        Loading device info...
+    </div>
+    
+    <div class="test-area">
+        <h2>Test 1: Basic Touch Detection</h2>
+        <button class="button" id="touchTestBtn">Touch Me!</button>
+        <div id="touchResult" class="status">Waiting for touch...</div>
+    </div>
+    
+    <div class="test-area">
+        <h2>Test 2: Image Zoom & Drag</h2>
+        <div class="test-image" id="testImage">
+            Tap to Zoom<br>Drag when Zoomed
+        </div>
+        <div id="zoomResult" class="status">Tap the image above</div>
+    </div>
+    
+    <div class="test-area">
+        <h2>Test 3: Event Logs</h2>
+        <button class="button" onclick="clearDebug()">Clear Logs</button>
+        <div class="debug-info" id="debugLog"></div>
+    </div>
+
+    <script>
+        // Global variables
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let currentX = 0, currentY = 0;
+        let debugLog = [];
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            debugLog.push(logMessage);
+            console.log(logMessage);
+            
+            const debugDiv = document.getElementById('debugLog');
+            debugDiv.innerHTML = debugLog.slice(-20).join('<br>'); // Show last 20 logs
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+        
+        function clearDebug() {
+            debugLog = [];
+            document.getElementById('debugLog').innerHTML = '';
+        }
+        
+        function updateStatus(id, message, type = 'info') {
+            const element = document.getElementById(id);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        // Device detection
+        function detectDevice() {
+            const info = {
+                userAgent: navigator.userAgent,
+                touchSupport: 'ontouchstart' in window,
+                pointerEvents: 'PointerEvent' in window,
+                viewport: `${window.innerWidth}x${window.innerHeight}`,
+                devicePixelRatio: window.devicePixelRatio || 1,
+                isMobile: /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+                isChrome: navigator.userAgent.includes('Chrome'),
+                isDevTools: window.navigator.webdriver === true || window.outerWidth - window.innerWidth > 160
+            };
+            
+            log(`Device detected: ${JSON.stringify(info, null, 2)}`);
+            
+            const infoText = `
+                Touch Support: ${info.touchSupport ? '✅' : '❌'} | 
+                Mobile UA: ${info.isMobile ? '✅' : '❌'} | 
+                DevTools: ${info.isDevTools ? '✅' : '❌'} | 
+                Viewport: ${info.viewport} | 
+                DPR: ${info.devicePixelRatio}
+            `;
+            
+            updateStatus('deviceInfo', infoText, 'info');
+            return info;
+        }
+        
+        // Test 1: Basic touch detection
+        function setupTouchTest() {
+            const btn = document.getElementById('touchTestBtn');
+            
+            // Touch events
+            btn.addEventListener('touchstart', function(e) {
+                log('✅ touchstart detected');
+                updateStatus('touchResult', 'Touch detected! ✅', 'success');
+                e.preventDefault();
+            }, { passive: false });
+            
+            btn.addEventListener('touchend', function(e) {
+                log('✅ touchend detected');
+                e.preventDefault();
+            }, { passive: false });
+            
+            // Click events (fallback)
+            btn.addEventListener('click', function(e) {
+                log('🖱️ click detected');
+                if (!('ontouchstart' in window)) {
+                    updateStatus('touchResult', 'Click detected (desktop mode)', 'info');
+                }
+            });
+        }
+        
+        // Test 2: Zoom and drag functionality
+        function setupZoomTest() {
+            const testImage = document.getElementById('testImage');
+            let touchStartTime = 0;
+            let touchMoved = false;
+            
+            // Touch start
+            testImage.addEventListener('touchstart', function(e) {
+                log(`touchstart: touches=${e.touches.length}`);
+                
+                if (e.touches.length !== 1) return;
+                e.preventDefault();
+                
+                touchStartTime = Date.now();
+                touchMoved = false;
+                
+                if (testImage.classList.contains('zoomed')) {
+                    log('Starting drag from touchstart');
+                    startDrag(e);
+                }
+            }, { passive: false });
+            
+            // Touch move
+            testImage.addEventListener('touchmove', function(e) {
+                if (e.touches.length !== 1) return;
+                touchMoved = true;
+                
+                if (testImage.classList.contains('zoomed') && isDragging) {
+                    e.preventDefault();
+                    touchDrag(e);
+                }
+            }, { passive: false });
+            
+            // Touch end
+            testImage.addEventListener('touchend', function(e) {
+                log(`touchend: changedTouches=${e.changedTouches.length}`);
+                
+                if (e.changedTouches.length !== 1) return;
+                e.preventDefault();
+                
+                const touchDuration = Date.now() - touchStartTime;
+                log(`Touch duration: ${touchDuration}ms, moved: ${touchMoved}`);
+                
+                if (isDragging) {
+                    stopDrag();
+                }
+                
+                // Quick tap to toggle zoom
+                if (touchDuration < 300 && !touchMoved) {
+                    toggleZoom();
+                }
+                
+                touchMoved = false;
+                touchStartTime = 0;
+            }, { passive: false });
+            
+            // Touch cancel
+            testImage.addEventListener('touchcancel', function(e) {
+                log('touchcancel detected');
+                touchMoved = false;
+                touchStartTime = 0;
+                if (isDragging) {
+                    stopDrag();
+                }
+            }, { passive: false });
+            
+            // Mouse events for desktop
+            testImage.addEventListener('click', function(e) {
+                if (!('ontouchstart' in window)) {
+                    e.preventDefault();
+                    toggleZoom();
+                }
+            });
+            
+            testImage.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                if (testImage.classList.contains('zoomed')) {
+                    e.preventDefault();
+                    startDrag(e);
+                }
+            });
+        }
+        
+        function toggleZoom() {
+            const testImage = document.getElementById('testImage');
+            
+            if (testImage.classList.contains('zoomed')) {
+                // Zoom out
+                testImage.classList.remove('zoomed', 'dragging');
+                testImage.style.transform = '';
+                currentX = 0;
+                currentY = 0;
+                log('🔍 Zoomed OUT');
+                updateStatus('zoomResult', 'Zoomed OUT - Tap to zoom in', 'info');
+            } else {
+                // Zoom in
+                testImage.classList.add('zoomed');
+                testImage.style.transform = 'scale(2)';
+                log('🔍 Zoomed IN');
+                updateStatus('zoomResult', 'Zoomed IN - Drag to move or tap to zoom out', 'success');
+            }
+        }
+        
+        function startDrag(event) {
+            log('🤏 Starting drag');
+            isDragging = true;
+            document.getElementById('testImage').classList.add('dragging');
+            
+            let clientX, clientY;
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            
+            startX = clientX - currentX;
+            startY = clientY - currentY;
+            
+            log(`Drag start: clientX=${clientX}, clientY=${clientY}, currentX=${currentX}, currentY=${currentY}`);
+            
+            // Add document-level event listeners
+            document.addEventListener('mousemove', drag, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', touchDrag, { passive: false });
+            document.addEventListener('touchend', stopDrag);
+            document.addEventListener('touchcancel', stopDrag);
+        }
+        
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            currentX = e.clientX - startX;
+            currentY = e.clientY - startY;
+            updateTransform();
+        }
+        
+        function touchDrag(e) {
+            if (!isDragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            
+            currentX = e.touches[0].clientX - startX;
+            currentY = e.touches[0].clientY - startY;
+            updateTransform();
+        }
+        
+        function updateTransform() {
+            const testImage = document.getElementById('testImage');
+            const maxX = 100;
+            const maxY = 100;
+            
+            const boundedX = Math.max(-maxX, Math.min(maxX, currentX));
+            const boundedY = Math.max(-maxY, Math.min(maxY, currentY));
+            
+            const transformString = `scale(2) translate(${boundedX / 2}px, ${boundedY / 2}px)`;
+            testImage.style.transform = transformString;
+            
+            log(`Transform: ${transformString}`);
+        }
+        
+        function stopDrag() {
+            if (!isDragging) return;
+            
+            log('🤏 Stopping drag');
+            isDragging = false;
+            document.getElementById('testImage').classList.remove('dragging');
+            
+            // Remove document-level event listeners
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', touchDrag);
+            document.removeEventListener('touchend', stopDrag);
+            document.removeEventListener('touchcancel', stopDrag);
+        }
+        
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Mobile test initialized');
+            detectDevice();
+            setupTouchTest();
+            setupZoomTest();
+        });
+        
+        // Prevent default touch behaviors
+        document.addEventListener('touchstart', function(e) {
+            // Allow touch on our test elements
+            if (e.target.closest('#touchTestBtn, #testImage')) {
+                return;
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', function(e) {
+            // Prevent scrolling when touching our test elements
+            if (e.target.closest('#testImage') && isDragging) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>

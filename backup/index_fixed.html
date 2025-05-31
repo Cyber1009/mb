@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>墨韻 - Calligraphy Extractor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink-black: #1a1a1a;
+            --ink-gray: #4a4a4a;
+            --paper-white: #faf8f3;
+            --paper-cream: #f5f1e8;
+            --seal-red:rgb(197, 90, 63);
+            --bamboo-green: #4a6741;
+            --mist-gray: #e8e6e0;
+            --shadow-light: rgba(26, 26, 26, 0.1);
+            --shadow-medium: rgba(26, 26, 26, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: 
+                /* Subtle bamboo texture overlay */
+                radial-gradient(ellipse 400px 300px at 15% 25%, rgba(26, 26, 26, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse 300px 400px at 85% 75%, rgba(139, 119, 83, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 200px 200px at 30% 70%, rgba(160, 136, 98, 0.06) 0%, transparent 40%),
+                /* Bamboo background image */
+                url('app_background/background_bamboo.jpg'),
+                /* Fallback aged paper base */
+                linear-gradient(135deg, #faf9f6 0%, #f7f5f0 25%, #f4f1eb 50%, #f7f4ee 75%, #faf8f3 100%);
+            background-size: 400px 300px, 300px 400px, 200px 200px, cover, 100% 100%;
+            background-position: 15% 25%, 85% 75%, 30% 70%, center center, 0 0;
+            background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+            background-attachment: fixed, fixed, fixed, fixed, scroll;
+            min-height: 100vh;
+            color: var(--ink-black);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        /* Header with traditional Chinese styling */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .main-title {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 3.5rem;
+            color: var(--ink-black);
+            margin-bottom: 0.5rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        .main-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: var(--seal-red);
+            border-radius: 2px;
+        }        /* Minimal clean panel design */
+        .scroll-panel {
+            background: 
+                /* Elegant cream paper base */
+                linear-gradient(135deg, #fefcf7 0%, #faf8f3 100%);
+            border-radius: 16px;
+            box-shadow: 
+                0 4px 20px rgba(0, 0, 0, 0.05),
+                0 2px 8px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            position: relative;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }.scroll-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: 
+                /* Simplified bamboo binding cord pattern */
+                repeating-linear-gradient(90deg, 
+                    rgba(121, 103, 73, 0.3) 0px, rgba(121, 103, 73, 0.3) 3px,
+                    rgba(139, 119, 83, 0.2) 3px, rgba(139, 119, 83, 0.2) 6px,
+                    transparent 6px, transparent 25px
+                ),
+                /* Clean cord base */
+                linear-gradient(180deg, rgba(139, 119, 83, 0.15), rgba(121, 103, 73, 0.25));
+            border-bottom: 1px solid rgba(121, 103, 73, 0.2);
+            box-shadow: 0 1px 2px rgba(121, 103, 73, 0.15);
+        }        /* Simplified bamboo slip binding holes */
+        .scroll-panel::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: 
+                repeating-linear-gradient(90deg, 
+                    transparent 0px, transparent 22px,
+                    rgba(121, 103, 73, 0.4) 22px, rgba(121, 103, 73, 0.4) 25px,
+                    transparent 25px, transparent 47px
+                );
+            opacity: 0.6;
+        }        .panel-header {
+            padding: 2rem 2.5rem 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            background: rgba(255, 255, 255, 0.15);
+            position: relative;
+        }/* Simplified calligraphy brush stroke decoration */
+        .panel-header::before {
+            content: '';
+            position: absolute;
+            left: 2rem;
+            bottom: -1px;
+            width: 40px;
+            height: 2px;
+            background: var(--seal-red);
+            border-radius: 1px;
+            opacity: 0.4;
+        }
+
+        .panel-title {
+            font-size: 1.6rem;
+            color: var(--ink-black);
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            letter-spacing: 0.02em;
+            position: relative;
+        }
+
+        /* Traditional seal-like decoration */
+        .panel-title span {
+            font-size: 1.8rem;
+            filter: drop-shadow(1px 1px 2px rgba(199, 62, 29, 0.2));
+        }
+
+        .panel-body {
+            padding: 2rem;
+            position: relative;
+            min-height: 400px;
+        }
+
+        /* Input styling with traditional elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 1rem;
+            color: var(--ink-black);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }        .file-input-button {
+            display: block;
+            width: 100%;
+            padding: 1.5rem;
+            background: 
+                /* Clean, elegant background */
+                linear-gradient(135deg, #f8f6f2 0%, #f4f1ea 100%);
+            border: 2px dashed rgba(120, 120, 120, 0.3);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            color: rgba(60, 60, 60, 0.9);
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 2px 8px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }        .file-input-button:hover {
+            border-color: rgba(139, 119, 83, 0.7);
+            background: linear-gradient(135deg, #f8f5ee 0%, #f4efe4 100%);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 16px rgba(121, 103, 73, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            color: rgba(81, 69, 49, 1);
+        }
+
+        /* Bamboo slip binding cord effect on hover */
+        .file-input-button::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 119, 83, 0.6), transparent);
+            transition: left 0.8s ease;
+            opacity: 0;
+        }
+
+        .file-input-button:hover::before {
+            left: 100%;
+            opacity: 0.8;
+        }
+
+        /* Additional binding cord */
+        .file-input-button::after {
+            content: '';
+            position: absolute;
+            bottom: 20%;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(121, 103, 73, 0.5), transparent);
+            transition: left 0.8s ease 0.1s;
+            opacity: 0;
+        }
+
+        .file-input-button:hover::after {
+            left: 100%;
+            opacity: 0.7;
+        }
+
+        .form-hint {
+            font-size: 0.85rem;
+            color: var(--ink-gray);
+            margin-top: 0.5rem;
+        }
+
+        /* Enhanced slider with bamboo styling */
+        .slider-container {
+            position: relative;
+            margin: 1rem 0;
+            padding: 0.5rem 0;
+        }
+
+        .threshold-slider {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: 
+                /* Bamboo slider track with natural wood grain */
+                linear-gradient(90deg, 
+                    rgba(139, 119, 83, 0.2) 0%, 
+                    rgba(160, 136, 98, 0.15) 25%, 
+                    rgba(121, 103, 73, 0.18) 50%, 
+                    rgba(160, 136, 98, 0.15) 75%,
+                    rgba(139, 119, 83, 0.2) 100%
+                ),
+                /* Wood texture overlay */
+                repeating-linear-gradient(90deg, 
+                    rgba(121, 103, 73, 0.08) 0px, rgba(121, 103, 73, 0.08) 2px,
+                    transparent 2px, transparent 4px
+                );
+            background-size: 100% 100%, 4px 100%;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            position: relative;
+            box-shadow: 
+                inset 0 2px 4px rgba(121, 103, 73, 0.15),
+                0 1px 2px rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(139, 119, 83, 0.3);
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: 
+                /* Bamboo knot pattern - crossing lines */
+                conic-gradient(from 0deg at 50% 50%, 
+                    rgba(121, 103, 73, 0.3) 0deg, transparent 45deg,
+                    rgba(139, 119, 83, 0.4) 90deg, transparent 135deg,
+                    rgba(121, 103, 73, 0.3) 180deg, transparent 225deg,
+                    rgba(139, 119, 83, 0.4) 270deg, transparent 315deg,
+                    rgba(121, 103, 73, 0.3) 360deg
+                ),
+                /* Natural wood grain rings */
+                radial-gradient(circle at 50% 50%, 
+                    transparent 20%, rgba(121, 103, 73, 0.2) 25%, transparent 30%,
+                    transparent 40%, rgba(139, 119, 83, 0.2) 45%, transparent 50%,
+                    transparent 60%, rgba(121, 103, 73, 0.15) 65%, transparent 70%
+                ),
+                /* Inner bamboo highlight */
+                radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
+                /* Base bamboo wood color */
+                linear-gradient(135deg, #e8dcc0 0%, #d4c4a0 50%, #c7b185 100%);
+            cursor: pointer;
+            box-shadow: 
+                /* Bamboo knot depth shadow */
+                0 4px 8px rgba(121, 103, 73, 0.3),
+                0 2px 4px rgba(26, 26, 26, 0.15),
+                /* Inner bamboo wood texture */
+                inset 1px 1px 3px rgba(255, 255, 255, 0.4),
+                inset -1px -1px 2px rgba(121, 103, 73, 0.2);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(139, 119, 83, 0.4);
+        }
+
+        .threshold-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 
+                /* Enhanced bamboo knot depth */
+                0 6px 12px rgba(121, 103, 73, 0.4),
+                0 3px 6px rgba(26, 26, 26, 0.2),
+                /* Stronger bamboo wood texture */
+                inset 1px 1px 4px rgba(255, 255, 255, 0.5),
+                inset -1px -1px 3px rgba(121, 103, 73, 0.3);
+        }
+
+        .threshold-slider::-moz-range-thumb {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: 
+                conic-gradient(from 0deg at 50% 50%, 
+                    rgba(121, 103, 73, 0.3) 0deg, transparent 45deg,
+                    rgba(139, 119, 83, 0.4) 90deg, transparent 135deg,
+                    rgba(121, 103, 73, 0.3) 180deg, transparent 225deg,
+                    rgba(139, 119, 83, 0.4) 270deg, transparent 315deg,
+                    rgba(121, 103, 73, 0.3) 360deg
+                ),
+                radial-gradient(circle at 50% 50%, 
+                    transparent 20%, rgba(121, 103, 73, 0.2) 25%, transparent 30%,
+                    transparent 40%, rgba(139, 119, 83, 0.2) 45%, transparent 50%,
+                    transparent 60%, rgba(121, 103, 73, 0.15) 65%, transparent 70%
+                ),
+                radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
+                linear-gradient(135deg, #e8dcc0 0%, #d4c4a0 50%, #c7b185 100%);
+            cursor: pointer;
+            border: 1px solid rgba(139, 119, 83, 0.4);
+            box-shadow: 
+                0 4px 8px rgba(121, 103, 73, 0.3),
+                0 2px 4px rgba(26, 26, 26, 0.15);
+        }        /* Clean background selection */
+        .background-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: 
+                /* Simple container background */
+                linear-gradient(135deg, #f8f5f0 0%, #f4f1ea 100%);
+            border-radius: 10px;
+            border: 1px solid rgba(139, 119, 83, 0.15);
+            box-shadow: 
+                inset 0 1px 3px rgba(121, 103, 73, 0.05),
+                0 2px 8px rgba(139, 119, 83, 0.05);
+        }        .background-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.8rem 0.6rem;
+            border: 1px solid rgba(139, 119, 83, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            background: 
+                /* Simple clean background */
+                linear-gradient(135deg, #f9f7f2 0%, #f4f1ea 100%);
+            position: relative;
+            box-shadow: 
+                0 2px 6px rgba(121, 103, 73, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        .background-option:hover {
+            border-color: rgba(139, 119, 83, 0.6);
+            transform: translateY(-2px) rotate(0.5deg);
+            box-shadow: 
+                0 6px 15px rgba(121, 103, 73, 0.12),
+                0 2px 8px rgba(139, 119, 83, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .background-option.selected {
+            border-color: var(--seal-red);
+            box-shadow: 
+                0 6px 16px rgba(199, 62, 29, 0.15),
+                0 2px 8px rgba(121, 103, 73, 0.1),
+                inset 0 1px 2px rgba(199, 62, 29, 0.06);
+            transform: translateY(-1px);
+        }
+
+        .background-option.selected::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background: var(--seal-red);
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+
+        .background-preview {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--mist-gray);
+        }
+
+        .background-label {
+            font-size: 0.8rem;
+            text-align: center;
+            color: var(--ink-black);
+        }
+
+        /* Buttons with traditional styling */
+        .btn {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--seal-red), #d4472f);
+            color: white;
+            box-shadow: 0 4px 15px rgba(199, 62, 29, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(199, 62, 29, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--bamboo-green), #5a7a52);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 103, 65, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 103, 65, 0.4);
+        }
+
+        .btn-disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            transform: none !important;
+        }
+
+        .btn-full {
+            width: 100%;
+        }        /* Clean writing surface container */
+        .canvas-container {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: 
+                /* Very minimal bamboo hint */
+                linear-gradient(135deg, #f6f3ec 0%, #f2ede2 100%);
+            border: 2px solid rgba(139, 119, 83, 0.2);
+            border-radius: 10px;
+            box-shadow: 
+                inset 0 2px 6px rgba(121, 103, 73, 0.06),
+                0 3px 12px rgba(121, 103, 73, 0.08);
+        }
+
+        /* Bamboo binding corner decorations */
+        .canvas-container::before,
+        .canvas-container::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: 
+                radial-gradient(circle at center, rgba(139, 119, 83, 0.4) 0%, rgba(121, 103, 73, 0.6) 50%, rgba(101, 86, 61, 0.8) 100%);
+            border-radius: 50%;
+            box-shadow: 
+                inset 0 1px 2px rgba(81, 69, 49, 0.4),
+                0 1px 3px rgba(121, 103, 73, 0.3);
+        }
+
+        .canvas-container::before {
+            top: 8px;
+            left: 8px;
+        }
+
+        .canvas-container::after {
+            bottom: 8px;
+            right: 8px;
+        }
+
+        canvas, .preview-image {
+            max-width: calc(100% - 2rem);
+            max-height: 320px;
+            border-radius: 8px;
+            box-shadow: 
+                0 8px 25px rgba(26, 26, 26, 0.12),
+                0 3px 10px rgba(26, 26, 26, 0.08);
+            border: 4px solid rgba(250, 249, 246, 0.9);
+            transition: transform 0.4s ease;
+        }
+
+        .preview-image:hover {
+            transform: scale(1.02) rotate(0.5deg);
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: var(--ink-gray);
+            padding: 2rem;
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .preview-placeholder p {
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        /* Loading and progress styling */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(250, 248, 243, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 15px;
+            z-index: 10;
+        }
+
+        .ink-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--mist-gray);
+            border-top: 3px solid var(--seal-red);
+            border-radius: 50%;
+            animation: inkSpin 1s linear infinite;
+        }
+
+        @keyframes inkSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            color: var(--ink-black);
+            font-size: 1.1rem;
+        }
+
+        .progress-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--mist-gray);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--seal-red), var(--bamboo-green));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--ink-gray);
+            margin-top: 0.5rem;
+        }
+
+        /* Error styling */
+        .error-message {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border: 1px solid #f1aeb5;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        /* Instructions with poetic styling */
+        .instructions {
+            text-align: center;
+            color: var(--ink-gray);
+            font-style: italic;
+            line-height: 1.6;
+        }
+
+        .instructions-title {
+            font-size: 1.2rem;
+            color: var(--ink-black);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .main-title {
+                font-size: 2.5rem;
+                line-height: 1.2;
+            }
+            
+            .panel-body {
+                padding: 1.5rem;
+                min-height: 300px;
+            }
+            
+            .background-grid {
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                gap: 0.75rem;
+            }
+            
+            .background-preview {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .background-label {
+                font-size: 0.7rem;
+            }
+            
+            .btn {
+                padding: 1rem 1.5rem;
+                font-size: 1.1rem;
+            }
+              
+            .canvas-container {
+                margin: 1rem 0;
+                min-height: 120px;
+            }
+            
+            canvas, .preview-image {
+                border-width: 2px;
+                max-height: 250px;
+            }
+
+            .placeholder-icon {
+                font-size: 2rem;
+            }
+            
+            .preview-placeholder {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-title {
+                font-size: 2rem;
+            }
+            
+            .panel-body {
+                padding: 1rem;
+            }
+        }
+
+        /* Single-column layout */
+        .content-grid {
+            display: block;
+            margin-top: 2rem;
+        }
+
+        .scroll-panel {
+            max-width: 800px;
+            margin: 0 auto 2rem auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="main-title">墨韻 Ink Harmony</h1>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="content-grid">
+            <!-- Input Panel -->
+            <div class="scroll-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span>📜</span> Upload & Configure
+                    </h2>
+                </div>
+                <div class="panel-body">
+                    <!-- Loading Overlay -->
+                    <div class="loading-overlay" id="loadingSpinner">
+                        <div class="ink-spinner"></div>
+                        <p class="loading-text">Processing with ink and brush...</p>
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress-container" id="progressContainer">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar" id="progressBar"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">Initializing...</div>
+                        </div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="form-group">
+                        <label class="form-label">Select Calligraphy Image</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" class="file-input" id="imageInput" accept="image/*">
+                            <label for="imageInput" class="file-input-button">
+                                📸 Choose image to extract calligraphy
+                            </label>
+                        </div>
+                        <div class="form-hint">Supports PNG, JPG, JPEG formats</div>
+                    </div>
+
+                    <!-- Preview Window -->
+                    <div class="form-group">
+                        <label class="form-label">Preview</label>
+                        <div class="canvas-container">
+                            <!-- Original image preview -->
+                            <img id="imagePreview" class="preview-image" style="display: none;" alt="Original Image">
+                            <!-- Processed canvas -->
+                            <canvas id="resultCanvas" style="display: none;"></canvas>
+                            
+                            <!-- Instructions when no image -->
+                            <div id="previewInstructions" class="preview-placeholder">
+                                <div class="placeholder-icon">📷</div>
+                                <p>Image preview will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Threshold Slider -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Extraction Sensitivity: <strong id="thresholdValue">80</strong>
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" class="threshold-slider" id="thresholdSlider" min="0" max="255" value="80">
+                        </div>
+                        <div class="form-hint">Lower values capture more strokes, higher values capture bold strokes only</div>
+                    </div>
+
+                    <!-- Background Selection -->
+                    <div class="form-group">
+                        <label class="form-label">Choose Background Style</label>
+                        <div class="background-grid" id="backgroundSelect">
+                            <!-- Background options will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Download Button -->
+                    <button type="button" class="btn btn-success btn-full" id="downloadBtn" style="display: none;">
+                        💾 Download Artwork
+                    </button>
+
+                    <!-- Error Message -->
+                    <div class="error-message" id="errorMessage"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenCV.js -->
+    <script async src="https://docs.opencv.org/4.5.0/opencv.js" onload="onOpenCvReady()" type="text/javascript"></script>
+    
+    <!-- Main Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
