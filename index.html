@@ -20,21 +20,18 @@
             --tea-color: rgba(162, 101, 22, 0.25);
             --tea-drop-color: rgba(173, 115, 38, 0.8);
         }        /* Teapot and water ripple effect styles */        .teapot-container {
-            position: fixed !important;
-            top: 20px !important;
-            left: 50px !important;
-            width: 170px;
-            height: 170px;
-            z-index: 15;
+            position: relative;
+            width: 90px;
+            height: 90px;
+            z-index: 20;
             cursor: pointer;
-            transition: none !important;
-            transform: none !important;
+            transition: none;
             will-change: auto;
-            /* Force fixed positioning on all possible scenarios */
-            -webkit-transform: none !important;
-            -moz-transform: none !important;
-            -ms-transform: none !important;
-            -o-transform: none !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0;
+            margin-left: 0.5rem;
         }
         
         /* Disable hover effects completely to prevent any transforms */
@@ -50,15 +47,16 @@
             0% { transform: scale(1); }
             50% { transform: scale(1.08); }
             100% { transform: scale(1); }
-        }          /* Steam effect */
+        }        /* Steam effect */
         .steam-container {
             position: absolute;
-            top: 15px;
-            left: 50px;
-            width: 20px;
-            height: 50px;
+            top: 25px; /* Position steam right at teapot spout area */
+            left: 50%;
+            transform: translateX(-50%) translateY(0%); /* No vertical offset - steam starts from teapot */
+            width: 60px;
+            height: 60px;
+            pointer-events: none;
             z-index: 6;
-            opacity: 0.7;
         }
         
         .steam {
@@ -131,18 +129,19 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             pointer-events: none;
-            z-index: -1;
+            z-index: 2;
             opacity: 0;
             transition: opacity 1.5s ease;
-            background-color: var(--tea-color);
-            background-image: 
+            background: radial-gradient(circle at 50% 40%, rgba(173,115,38,0.18) 0%, rgba(173,115,38,0.10) 30%, transparent 70%),
                 radial-gradient(ellipse 400px 300px at 30% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 70%),
                 radial-gradient(ellipse 300px 400px at 70% 60%, rgba(162, 101, 22, 0.15) 0%, transparent 70%),
                 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="none"/><path d="M0 0L100 100M100 0L0 100" stroke="rgba(173, 115, 38, 0.05)" stroke-width="0.5"/></svg>');
-            overflow: hidden;
+            background-size: cover, 400px 300px, 300px 400px, 100% 100%;
+            background-position: center, 30% 40%, 70% 60%, center;
+            background-repeat: no-repeat, no-repeat, no-repeat, repeat;
         }
 
         .ripple-container.active {
@@ -153,6 +152,7 @@
             background: var(--tea-drop-color);
             transform: scale(0);
             animation: ripple-effect 4s linear infinite;
+            z-index: 10;
         }        .tea-drop {
             position: absolute;
             width: 10px;
@@ -286,7 +286,11 @@
             text-align: center;
             margin-bottom: 1.5rem;
             position: relative;
-        }        .main-title {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 2rem; /* Push teapot and title towards right */
+        }.main-title {
             font-family: 'Ma Shan Zheng', cursive;
             font-size: 3.5rem;
             color: var(--ink-black);
@@ -421,14 +425,21 @@
                 max-width: calc(100% - 140px);
             }
         }
-        
-        @media (max-width: 360px) {
+          @media (max-width: 360px) {
             .slider-container {
                 gap: 0.25rem;
             }
             
             .threshold-slider {
                 max-width: calc(100% - 100px);
+            }
+        }
+
+        /* Additional mobile spacing adjustments */
+        @media (max-width: 768px) {
+            .threshold-section {
+                margin-top: 0.25rem !important;
+                margin-bottom: 0.25rem !important;
             }
         }
         
@@ -573,12 +584,12 @@
 
         .btn-full {
             width: 100%;
-        }        /* Integrated upload icon styling - now positioned relative to threshold slider */.upload-icon-button {
+        }        /* Integrated upload icon styling - now positioned relative to threshold slider */        .upload-icon-button {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 150px;
-            height: 150px;
+            width: 200px;
+            height: 200px;
             background: none;
             border: none;
             border-radius: 0;
@@ -875,15 +886,17 @@
             canvas.zoomed.dragging, .preview-image.zoomed.dragging {
                 cursor: grabbing !important;
             }
-        }
-          @media (max-width: 768px) {
+        }          @media (max-width: 768px) {
             .main-container {
                 padding: 1rem;
-            }            .teapot-container {
-                width: 145px;
-                height: 145px;
-                top: 15px;
-                left: 30px;
+            }            
+            .header {
+                padding-left: 1.5rem; /* Maintain right positioning on mobile */
+            }              .teapot-container {
+                width: 75px; /* Much smaller to prevent title conflicts in F12 mobile mode */
+                height: 75px;
+                top: 5px; /* Align better with title baseline */
+                left: 5px; /* Move further left */
             }
             
             .main-title {
@@ -933,27 +946,28 @@
             .placeholder-icon {
                 font-size: 2.5rem;
             }
-            
-            .preview-placeholder {
+              .preview-placeholder {
                 padding: 2rem 1rem;
             }            .threshold-section .upload-icon-button {
-                width: 130px;
-                height: 130px;
+                width: 180px;
+                height: 180px;
             }
             
             .threshold-section .upload-icon-button img {
-                width: 130px !important;
-                height: 130px !important;
+                width: 180px !important;
+                height: 180px !important;
             }
         }
           @media (max-width: 480px) {
             .main-container {
                 padding: 0.5rem;
+            }              .header {
+                padding-left: 1rem; /* Maintain right positioning on smaller mobile */
             }            .teapot-container {
-                width: 125px;
-                height: 125px;
-                top: 10px;
-                left: 20px;
+                width: 65px; /* Even smaller for 480px screens */
+                height: 65px;
+                top: 3px; /* Align better with title baseline */
+                left: 3px; /* Move further left */
             }
             
             .main-title {
@@ -980,15 +994,14 @@
             }
               .preview-placeholder {
                 padding: 1.5rem 0.5rem;
-            }
-              .threshold-section .upload-icon-button {
-                width: 130px;
-                height: 130px;
+            }              .threshold-section .upload-icon-button {
+                width: 160px;
+                height: 160px;
             }
             
             .threshold-section .upload-icon-button img {
-                width: 130px !important;
-                height: 130px !important;
+                width: 160px !important;
+                height: 160px !important;
             }
             
             .background-grid {
@@ -999,13 +1012,14 @@
             .background-preview {
                 width: 35px;
                 height: 35px;
-            }
-        }/* Enhanced scaling for very small screens */        @media (max-width: 360px) {
-            .teapot-container {
-                width: 100px;
-                height: 100px;
-                top: 8px;
-                left: 15px;
+            }        }/* Enhanced scaling for very small screens */        @media (max-width: 360px) {
+            .header {
+                padding-left: 0.5rem; /* Maintain right positioning on very small screens */
+            }              .teapot-container {
+                width: 55px; /* Smallest size for very small screens */
+                height: 55px;
+                top: 1px; /* Align better with title baseline */
+                left: 2px; /* Move further left */
             }
             
             .canvas-container {
@@ -1018,13 +1032,13 @@
                 max-width: calc(100% - 0.1rem);
             }
               .threshold-section .upload-icon-button {
-                width: 90px;
-                height: 90px;
+                width: 120px;
+                height: 120px;
             }
             
             .threshold-section .upload-icon-button img {
-                width: 90px !important;
-                height: 90px !important;
+                width: 120px !important;
+                height: 120px !important;
             }
             
             .placeholder-icon {
@@ -1034,11 +1048,28 @@
             .preview-placeholder {
                 padding: 1rem 0.25rem;
             }
-            
-            .main-title {
+              .main-title {
                 font-size: 1.6rem;
             }
-        }        /* Landscape orientation optimization */
+        }        /* Extra small screens - F12 developer mode compatibility */
+        @media (max-width: 320px) {            .teapot-container {
+                width: 45px !important;
+                height: 45px !important;
+                top: -1px; /* Align better with title baseline */
+                left: 1px; /* Move further left to avoid title conflict */
+            }
+            
+            .main-title {
+                font-size: 1.4rem;
+                margin-left: 50px; /* Adjust title margin for new teapot position */
+            }
+            
+            .header {
+                padding-left: 0.25rem;
+            }
+        }
+
+        /* Landscape orientation optimization */
         @media screen and (orientation: landscape) and (max-height: 600px) {
             .canvas-container {
                 min-height: 250px;
@@ -1092,11 +1123,9 @@
             .scroll-panel {
                 max-width: 1000px;
             }
-        }
-
-        /* Steam animation for teapot */
+        }        /* Steam animation for teapot */
         .steam-container {            position: absolute;
-            top: -20px;
+            top: -10px; /* Move steam closer to teapot */
             left: 50%;
             transform: translateX(-50%);
             width: 60px;
@@ -1148,23 +1177,20 @@
 <body>
     <!-- Background image -->
     <div class="background-image"></div>
-    
-    <!-- Teapot and ripple effect containers -->
-    <div class="teapot-container" id="teapot">
-        <div class="teapot"></div>
-        <div class="steam-container">
-            <div class="steam steam-1"></div>
-            <div class="steam steam-2"></div>
-            <div class="steam steam-3"></div>
-        </div>
-        <div class="teapot-hint">Click me!</div>
-    </div>
     <div class="ripple-container" id="rippleContainer"></div>
-    
     <div class="main-container">        <!-- Header -->
-        <div class="header">
-            <h1 class="main-title">墨韻 Ink Harmony</h1>
+    <div class="header">
+        <div class="teapot-container" id="teapot">
+            <div class="teapot"></div>
+            <div class="steam-container">
+                <div class="steam steam-1"></div>
+                <div class="steam steam-2"></div>
+                <div class="steam steam-3"></div>
+            </div>
+            <div class="teapot-hint">Click me!</div>
         </div>
+        <h1 class="main-title">墨韻 Ink Harmony</h1>
+    </div>
 
         <!-- Main Content Grid -->
         <div class="content-grid">            <!-- Input Panel -->            <div class="scroll-panel">
@@ -1188,32 +1214,28 @@
                             <!-- Original image preview -->
                             <img id="imagePreview" class="preview-image" style="display: none;" alt="Original Image">                            <!-- Processed canvas -->
                             <canvas id="resultCanvas" style="display: none;"></canvas>                        </div>
-                    </div>
-
-                    <!-- Threshold Slider Section -->
-                    <div class="form-group threshold-section">
+                    </div>                    <!-- Upload Icon Button - Always Visible and Centered -->
+                    <div class="form-group upload-section" style="margin-top: 1rem; margin-bottom: 1rem; text-align: center;">
+                        <div class="upload-icon-wrapper">
+                            <input type="file" class="file-input" id="imageInput" accept="image/*">
+                            <label for="imageInput" class="upload-icon-button" title="Upload calligraphy image">
+                                <img src="app_background/writing_brush.png?v=20250101" alt="Upload" style="width: 200px; height: 200px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));">
+                            </label>
+                        </div>
+                    </div>                    <!-- Threshold Slider Section - Lower Position -->
+                    <div class="form-group threshold-section" style="margin-top: 3rem; margin-bottom: 0.5rem;">
                         <!-- Hidden threshold value for JavaScript reference -->
                         <span id="thresholdValue" style="display: none;">80</span>
                         <div class="slider-container">
                             <input type="range" class="threshold-slider" id="thresholdSlider" min="0" max="255" value="80">
-                            <!-- Upload Icon Button -->
-                            <div class="upload-icon-wrapper">
-                                <input type="file" class="file-input" id="imageInput" accept="image/*">                
-                                <label for="imageInput" class="upload-icon-button" title="Upload calligraphy image">
-                                    <img src="app_background/writing_brush.png?v=20250101" alt="Upload" style="width: 150px; height: 150px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));">
-                                </label>
-                            </div>
                         </div>
-                        <div class="form-hint">Lower values capture more strokes, higher values capture bold strokes only</div>
-                    </div>
-
-                    <!-- Background Selection -->
-                    <div class="form-group">
-                        <label class="form-label">Choose Background Style</label>
-                        <div class="background-grid" id="backgroundSelect">
+                    </div><!-- Background Selection -->
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <div class="background-grid" id="backgroundSelect" style="display: none !important; margin-top: 0.5rem;">
                             <!-- Background options will be populated here -->
                         </div>
-                    </div>                    <!-- Download Button -->
+                    </div>
+                    <!-- Download Button -->
                     <button type="button" class="btn btn-success btn-full" id="downloadBtn" style="display: none;">                    💾 Download Artwork                    </button>
 
                     <!-- Error Message -->

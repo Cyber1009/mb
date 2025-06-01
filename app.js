@@ -225,6 +225,24 @@ function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
+// After image upload and preview is shown, reveal scroll panel, background selection, and download button
+function showMainUIAfterImageUpload() {
+    document.querySelector('.scroll-panel').style.display = '';
+    document.getElementById('backgroundSelect').style.display = '';
+    document.getElementById('downloadBtn').style.display = '';
+}
+
+// Patch image upload logic to call showMainUIAfterImageUpload
+const imageInput = document.getElementById('imageInput');
+if (imageInput) {
+    imageInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            // Wait for image preview to load, then show UI
+            setTimeout(showMainUIAfterImageUpload, 300);
+        }
+    });
+}
+
 function updateContainerSize(img) {
     const container = document.querySelector('.canvas-container');
     if (!container || !img) return;
@@ -912,47 +930,10 @@ function setupTeapot() {
     const teapot = document.getElementById('teapot');
     const teapotElement = teapot.querySelector('.teapot');
     const rippleContainer = document.getElementById('rippleContainer');
-    const steamContainer = teapot.querySelector('.steam-container');    // Ensure teapot stays fixed positioned
-    function enforceTeapotPosition() {
-        teapot.style.position = 'fixed';
-        teapot.style.top = '10px';
-        teapot.style.left = '10px';
-        teapot.style.transform = 'none';
-        teapot.style.transition = 'none';
-        teapot.style.right = 'auto';
-        teapot.style.bottom = 'auto';
-        teapot.style.margin = '0';
-        teapot.style.padding = '0';
-        teapot.style.float = 'none';
-        teapot.style.display = 'block';
-        teapot.style.zIndex = '9999';
-        // Remove any webkit transforms that might interfere
-        teapot.style.webkitTransform = 'none';
-        teapot.style.mozTransform = 'none';
-        teapot.style.msTransform = 'none';
-        teapot.style.oTransform = 'none';
-        // Prevent any CSS animations that might move it
-        teapot.style.animation = 'none';
-        teapot.style.webkitAnimation = 'none';
-    }    // Call on setup and periodically to prevent drift
-    enforceTeapotPosition();
-    setInterval(enforceTeapotPosition, 50); // Very frequent enforcement
+    const steamContainer = teapot.querySelector('.steam-container');
+    // Remove enforceTeapotPosition and related scroll/resize listeners
     
-    // Also enforce on scroll and resize
-    window.addEventListener('scroll', enforceTeapotPosition);
-    window.addEventListener('resize', enforceTeapotPosition);
-    window.addEventListener('orientationchange', enforceTeapotPosition);
-    
-    // Add mutation observer to prevent any external changes to teapot positioning
-    const observer = new MutationObserver(() => {
-        enforceTeapotPosition();
-    });
-    
-    observer.observe(teapot, {
-        attributes: true,
-        attributeFilter: ['style', 'class']
-    });
-      teapot.addEventListener('click', function() {
+    teapot.addEventListener('click', function() {
         if (isTeaPouring) return; // Prevent multiple clicks while animation is running
         isTeaPouring = true;
         
@@ -981,7 +962,7 @@ function setupTeapot() {
             isTeaPouring = false;
             
             // Enforce positioning based on screen size
-            enforceTeapotPosition();
+            // enforceTeapotPosition();
             
             // Show steam again
             steamContainer.style.opacity = '0.7';
