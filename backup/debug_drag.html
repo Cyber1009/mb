@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag Bounds Debug</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border: 2px solid red;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            overflow: visible;
+            position: relative;
+        }
+        
+        .test-image {
+            max-width: calc(100% - 10px);
+            max-height: 280px;
+            border: 2px solid blue;
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+            object-fit: contain;
+        }
+        
+        .test-image.zoomed {
+            transform: scale(2);
+            cursor: grab;
+            z-index: 10;
+        }
+        
+        .test-image.zoomed.dragging {
+            cursor: grabbing;
+            transition: none;
+        }
+        
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            border-radius: 5px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+        
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        Click to see debug info
+    </div>
+    
+    <div class="controls">
+        <button onclick="loadTestImage('tall')">Load Tall Image</button>
+        <button onclick="loadTestImage('wide')">Load Wide Image</button>
+        <button onclick="loadTestImage('square')">Load Square Image</button>
+        <button onclick="resetZoom()">Reset Zoom</button>
+    </div>
+    
+    <div class="container" id="container">
+        <img class="test-image" id="testImage" 
+             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600' viewBox='0 0 400 600'%3E%3Crect width='400' height='600' fill='%23e0e0e0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='24'%3ETall Image 400x600%3C/text%3E%3C/svg%3E"
+             alt="Test Image">
+    </div>
+    
+    <script>
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let currentX = 0, currentY = 0;
+        
+        const debugInfo = document.getElementById('debugInfo');
+        const testImage = document.getElementById('testImage');
+        const container = document.getElementById('container');
+        
+        function updateDebugInfo() {
+            const imageRect = testImage.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const isZoomed = testImage.classList.contains('zoomed');
+            
+            const info = `
+                Container: ${Math.round(containerRect.width)}x${Math.round(containerRect.height)}
+                Image Rendered: ${Math.round(imageRect.width)}x${Math.round(imageRect.height)}
+                Image Natural: ${testImage.naturalWidth}x${testImage.naturalHeight}
+                Zoomed: ${isZoomed}
+                Current Offset: ${Math.round(currentX)}, ${Math.round(currentY)}
+                
+                ${isZoomed ? `
+                Scaled Size: ${Math.round(imageRect.width * 2)}x${Math.round(imageRect.height * 2)}
+                Overflow X: ${Math.round((imageRect.width * 2 - containerRect.width) / 2)}
+                Overflow Y: ${Math.round((imageRect.height * 2 - containerRect.height) / 2)}
+                ` : ''}
+            `;
+            debugInfo.innerHTML = info.trim();
+        }
+        
+        function loadTestImage(type) {
+            const images = {
+                tall: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='800' viewBox='0 0 400 800'%3E%3Crect width='400' height='800' fill='%23ffcccc'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3ETall Image 400x800%3C/text%3E%3Ctext x='50%25' y='10%25' dominant-baseline='middle' text-anchor='middle' font-size='16'%3ETOP EDGE%3C/text%3E%3Ctext x='50%25' y='90%25' dominant-baseline='middle' text-anchor='middle' font-size='16'%3EBOTTOM EDGE%3C/text%3E%3C/svg%3E",
+                wide: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23ccffcc'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3EWide Image 800x400%3C/text%3E%3Ctext x='10%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='16'%3ELEFT%3C/text%3E%3Ctext x='90%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='16'%3ERIGHT%3C/text%3E%3C/svg%3E",
+                square: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500' viewBox='0 0 500 500'%3E%3Crect width='500' height='500' fill='%23ccccff'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='20'%3ESquare Image 500x500%3C/text%3E%3Ctext x='50%25' y='10%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3ETOP%3C/text%3E%3Ctext x='50%25' y='90%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EBOTTOM%3C/text%3E%3Ctext x='10%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EL%3C/text%3E%3Ctext x='90%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3ER%3C/text%3E%3C/svg%3E"
+            };
+            
+            testImage.src = images[type];
+            resetZoom();
+        }
+        
+        function resetZoom() {
+            testImage.classList.remove('zoomed', 'dragging');
+            testImage.style.transform = '';
+            currentX = 0;
+            currentY = 0;
+            updateDebugInfo();
+        }
+        
+        function updateTransform() {
+            const imageRect = testImage.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate bounds - this is the key part to test
+            const renderedWidth = imageRect.width;
+            const renderedHeight = imageRect.height;
+            
+            const scaleRatio = 2;
+            const scaledWidth = renderedWidth * scaleRatio;
+            const scaledHeight = renderedHeight * scaleRatio;
+            
+            const overflowX = Math.max(0, (scaledWidth - containerRect.width) / 2);
+            const overflowY = Math.max(0, (scaledHeight - containerRect.height) / 2);
+            
+            // Test different bound calculations
+            const maxX = Math.max(150, overflowX + (renderedWidth * 0.3));
+            const maxY = Math.max(150, overflowY + (renderedHeight * 0.3));
+            
+            const boundedX = Math.max(-maxX, Math.min(maxX, currentX));
+            const boundedY = Math.max(-maxY, Math.min(maxY, currentY));
+            
+            const transformString = `scale(2) translate(${boundedX / 2}px, ${boundedY / 2}px)`;
+            testImage.style.transform = transformString;
+            
+            updateDebugInfo();
+        }
+        
+        // Event listeners
+        testImage.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (testImage.classList.contains('zoomed')) {
+                resetZoom();
+            } else {
+                testImage.classList.add('zoomed');
+                testImage.style.transform = 'scale(2)';
+                updateDebugInfo();
+            }
+        });
+        
+        testImage.addEventListener('mousedown', function(e) {
+            if (e.button !== 0 || !testImage.classList.contains('zoomed')) return;
+            
+            e.preventDefault();
+            isDragging = true;
+            testImage.classList.add('dragging');
+            
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+        });
+        
+        function drag(e) {
+            if (!isDragging) return;
+            
+            e.preventDefault();
+            currentX = e.clientX - startX;
+            currentY = e.clientY - startY;
+            
+            updateTransform();
+        }
+        
+        function stopDrag() {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            testImage.classList.remove('dragging');
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+        
+        // Initial setup
+        updateDebugInfo();
+        
+        // Update debug info on window resize
+        window.addEventListener('resize', updateDebugInfo);
+    </script>
+</body>
+</html>

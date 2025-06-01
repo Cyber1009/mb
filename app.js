@@ -2,6 +2,22 @@
 let cv = null;
 let currentImage = null;
 let selectedBackground = 'original';
+let isTeaPouring = false; // Track teapot pouring state
+
+/**
+ * Chinese Teapot Feature
+ * ----------------------
+ * This feature adds an interactive Chinese-style teapot to the top of the page.
+ * When clicked, the teapot tilts and pours tea, creating a water ripple effect
+ * that fills the entire page background.
+ * 
+ * Features:
+ * - Animated teapot with steam effect
+ * - Mouse-following teapot movement
+ * - Tea drops with physics-based animation
+ * - Splash effects when drops hit the surface
+ * - Water ripple background effect
+ */
 
 // Background options - Traditional Chinese calligraphy inspired
 const backgroundOptions = [
@@ -22,22 +38,9 @@ function isMobileDevice() {
            (navigator.msMaxTouchPoints > 0);
 }
 
-// Simple mobile status update (non-debug version)
-function updateMobileStatus() {
-    // This function can be empty for production or just log status
-    const isMobile = isMobileDevice();
-    console.log('Mobile device detected:', isMobile);
-}
-
-// Simple debug log function (non-intrusive version)
-function debugLog(message) {
-    console.log('[DEBUG]', message);
-}
-
 // Wait for OpenCV to load
 function onOpenCvReady() {
     cv = window.cv;
-    console.log('OpenCV.js is ready');
     initializeApp();
 }
 
@@ -46,11 +49,9 @@ window.addEventListener('load', function() {
     // Wait a bit for OpenCV to potentially load
     setTimeout(function() {
         if (!cv && window.cv) {
-            console.log('OpenCV loaded after window load, initializing...');
             cv = window.cv;
             initializeApp();
         } else if (!cv) {
-            console.log('OpenCV not loaded, initializing basic functionality...');
             initializeApp();
         }
     }, 2000);
@@ -60,26 +61,18 @@ function initializeApp() {
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            logBrowserInfo();
-            testDragCapability();
             setupEventListeners();
             populateBackgroundOptions();
             loadBackgroundImages();
-            updateMobileStatus();
         });
     } else {
-        logBrowserInfo();
-        testDragCapability();
         setupEventListeners();
         populateBackgroundOptions();
         loadBackgroundImages();
-        updateMobileStatus();
     }
 }
 
 function setupEventListeners() {
-    console.log('Setting up event listeners...');
-    
     // File input
     document.getElementById('imageInput').addEventListener('change', handleImageUpload);
     
@@ -91,7 +84,8 @@ function setupEventListeners() {
             processImageRealtime(); // Lightweight real-time updates
         }
     });
-      // Download button
+    
+    // Download button
     document.getElementById('downloadBtn').addEventListener('click', downloadResult);
     
     // Background selection
@@ -103,14 +97,18 @@ function setupEventListeners() {
     
     // Enhanced zoom and drag functionality
     setupZoomAndDrag();
-      // Window resize handler for mobile orientation changes
+    
+    // Window resize handler for mobile orientation changes
     window.addEventListener('resize', function() {
         if (currentImage) {
             updateContainerSize(currentImage);
         }
-        // Update mobile status on resize (useful for F12 DevTools)
-        setTimeout(updateMobileStatus, 100);
     });
+      // Teapot click handler
+    setupTeapot();
+    
+    // Teapot movement based on mouse position - DISABLED to keep teapot fixed
+    // setupTeapotMovement();
 }
 
 function populateBackgroundOptions() {
@@ -211,10 +209,9 @@ function handleImageUpload(event) {
     }
     
     const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();        img.onload = function() {
-            currentImage = img;
-            updateContainerSize(img);
+    reader.onload = function(e) {        const img = new Image();
+        img.onload = function() {
+            currentImage = img;            updateContainerSize(img);
             displayImagePreview(img);
             hideError();
             
@@ -284,17 +281,14 @@ function displayImagePreview(img) {
     
     // IMPORTANT: Re-setup zoom and drag events when image is displayed
     setTimeout(() => {
-        console.log('Re-setting up zoom events for displayed image');
         const preview = document.getElementById('imagePreview');
         const canvas = document.getElementById('resultCanvas');
         
         if (preview && preview.style.display !== 'none') {
             setupImageEvents(preview);
-            console.log('Zoom events setup for preview image');
         }
         if (canvas && canvas.style.display !== 'none') {
             setupImageEvents(canvas);
-            console.log('Zoom events setup for canvas');
         }
     }, 100); // Small delay to ensure DOM is updated
 }
@@ -317,7 +311,6 @@ function displayOriginalImage() {
     
     // IMPORTANT: Setup zoom events for the displayed image
     setTimeout(() => {
-        console.log('Setting up zoom events for original image display');
         setupImageEvents(preview);
     }, 50);
 }
@@ -379,9 +372,8 @@ function processImageRealtime() {
         gray.delete();
         binary.delete();
         kernel.delete();
-        
     } catch (error) {
-        console.error('Real-time processing error:', error);
+        // Silently handle real-time processing errors
         // Don't show error UI for real-time updates
     }
 }
@@ -438,7 +430,8 @@ function processImage() {
             cv.morphologyEx(binary, binary, cv.MORPH_OPEN, kernel, new cv.Point(-1, -1), 1);
             
             updateProgress(80, 'Preparing traditional paper...');
-              // Create preview image with background
+            
+            // Create preview image with background
             const result = createBackgroundImage(canvas.width, canvas.height);
             
             updateProgress(90, 'Harmonizing ink and paper...');
@@ -458,9 +451,7 @@ function processImage() {
             kernel.delete();
             
             hideLoading();
-            
         } catch (error) {
-            console.error('Processing error:', error);
             showError('Error processing image: ' + error.message);
             hideLoading();
         }
@@ -551,7 +542,6 @@ function displayResult(canvas) {
     
     // IMPORTANT: Setup zoom events for the displayed canvas
     setTimeout(() => {
-        console.log('Setting up zoom events for result canvas');
         setupImageEvents(resultCanvas);
     }, 50);
 }
@@ -623,61 +613,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-
-
-// Enhanced mobile detection
-function isMobileDevice() {
-    return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0) ||
-           (navigator.msMaxTouchPoints > 0);
-}
-
-
-
-
-
-function logBrowserInfo() {
-    const info = {
-        userAgent: navigator.userAgent,
-        isChrome: navigator.userAgent.includes('Chrome'),
-        isVSCodeBrowser: navigator.userAgent.includes('VSCode'),
-        touchSupport: 'ontouchstart' in window,
-        pointerEvents: 'PointerEvent' in window,
-        viewport: {
-            width: window.innerWidth,
-            height: window.innerHeight
-        }
-    };
-    
-    console.log('Browser Info:', info);
-    debugLog(`Browser: ${info.isChrome ? 'Chrome' : (info.isVSCodeBrowser ? 'VSCode' : 'Other')}`);
-    debugLog(`Touch: ${info.touchSupport}, Pointer: ${info.pointerEvents}`);
-    debugLog(`Viewport: ${info.viewport.width}x${info.viewport.height}`);
-    
-    return info;
-}
-
-// Test drag capability
-function testDragCapability() {
-    const testElement = document.createElement('div');
-    testElement.style.cssText = `
-        width: 50px; height: 50px; position: fixed; top: -100px; left: -100px;
-        transform: translateZ(0); will-change: transform;
-    `;
-    document.body.appendChild(testElement);
-    
-    const supportsTransform = testElement.style.transform !== undefined;
-    const supportsWillChange = testElement.style.willChange !== undefined;
-    
-    document.body.removeChild(testElement);
-    
-    console.log('Drag Capability Test:', { supportsTransform, supportsWillChange });
-    debugLog(`Transform: ${supportsTransform}, WillChange: ${supportsWillChange}`);
-    
-    return { supportsTransform, supportsWillChange };
-}
-
 // Enhanced zoom and drag functionality
 function setupZoomAndDrag() {
     let isDragging = false;
@@ -685,24 +620,19 @@ function setupZoomAndDrag() {
     let currentX = 0, currentY = 0;
     let initialTransform = { x: 0, y: 0 };
     
-    console.log('Setting up zoom and drag functionality');
-    debugLog('Setting up zoom and drag functionality');    // Make setupImageEvents globally accessible for debugging
+    // Make setupImageEvents globally accessible
     window.setupImageEvents = setupImageEvents;
-      function setupImageEvents(element) {
+    
+    function setupImageEvents(element) {
         if (!element) {
-            console.log('setupImageEvents called with null/undefined element');
             return;
         }
 
         // Check if element already has zoom events
         if (element.hasAttribute('data-zoom-setup')) {
-            console.log('Element already has zoom events setup, skipping');
             return;
         }
-
-        console.log('Setting up zoom events for element:', element.id || element.tagName, element);
-        debugLog(`Setting up zoom events for: ${element.id || element.tagName}`);
-
+        
         let touchStartTime = 0;
         let touchMoved = false;
         let initialTouchPos = { x: 0, y: 0 };
@@ -713,16 +643,18 @@ function setupZoomAndDrag() {
         // Prevent context menu on images for better drag experience
         element.addEventListener('contextmenu', function(e) {
             e.preventDefault();
-        });// Click to zoom toggle (only for desktop or when no touch support)
+        });
+        
+        // Click to zoom toggle (only for desktop or when no touch support)
         element.addEventListener('click', function(e) {
-            console.log('Click detected on element, touch device:', isMobileDevice());
             // Only handle click if it's not a touch device OR it's a mouse click on mobile
             if (!isMobileDevice() || (e.detail && e.detail > 0)) {
                 e.preventDefault();
-                debugLog('Click zoom toggle (desktop mode)');
                 toggleZoom(element);
             }
-        });// Mouse events for drag (desktop)
+        });
+        
+        // Mouse events for drag (desktop)
         element.addEventListener('mousedown', function(e) {
             // Only handle left mouse button
             if (e.button !== 0) return;
@@ -732,10 +664,10 @@ function setupZoomAndDrag() {
                 e.stopPropagation(); // Important for Chrome
                 startDrag(e, element);
             }
-        });        // Touch events for mobile
+        });
+        
+        // Touch events for mobile
         element.addEventListener('touchstart', function(e) {
-            debugLog(`touchstart: touches=${e.touches.length}, zoomed=${element.classList.contains('zoomed')}`);
-            
             // Only handle single touches
             if (e.touches.length !== 1) return;
             
@@ -747,10 +679,11 @@ function setupZoomAndDrag() {
             // Only prevent default for zoomed images to avoid interfering with normal scrolling
             if (element.classList.contains('zoomed')) {
                 e.preventDefault();
-                debugLog('Starting drag from touchstart');
                 startDrag(e, element);
             }
-        }, { passive: false });        element.addEventListener('touchmove', function(e) {
+        }, { passive: false });
+        
+        element.addEventListener('touchmove', function(e) {
             if (e.touches.length !== 1) return;
             
             const touch = e.touches[0];
@@ -762,26 +695,21 @@ function setupZoomAndDrag() {
                 touchMoved = true;
             }
             
-            debugLog(`touchmove: delta=${deltaX.toFixed(1)},${deltaY.toFixed(1)}, moved=${touchMoved}`);
-            
             // If we're dragging a zoomed image, handle the drag movement
             if (element.classList.contains('zoomed') && isDragging) {
                 e.preventDefault();
                 touchDrag(e);
             }
-        }, { passive: false });        element.addEventListener('touchend', function(e) {
-            debugLog(`touchend: changedTouches=${e.changedTouches.length}`);
-            
+        }, { passive: false });
+        
+        element.addEventListener('touchend', function(e) {
             // Only handle single touch end
             if (e.changedTouches.length !== 1) return;
             
             const touchDuration = Date.now() - touchStartTime;
             
-            debugLog(`touchend: duration=${touchDuration}ms, moved=${touchMoved}, zoomed=${element.classList.contains('zoomed')}`);
-            
             // Stop any ongoing drag first
             if (isDragging) {
-                debugLog('Stopping drag on touchend');
                 stopDrag();
             }
             
@@ -790,7 +718,6 @@ function setupZoomAndDrag() {
             
             if (isTap) {
                 e.preventDefault(); // Prevent ghost clicks
-                debugLog(`Quick tap detected (${touchDuration}ms) - toggling zoom`);
                 toggleZoom(element);
             }
             
@@ -798,9 +725,10 @@ function setupZoomAndDrag() {
             touchMoved = false;
             touchStartTime = 0;
             initialTouchPos = { x: 0, y: 0 };
-        }, { passive: false });        // Handle touch cancel (important for mobile)
+        }, { passive: false });
+        
+        // Handle touch cancel (important for mobile)
         element.addEventListener('touchcancel', function(e) {
-            debugLog('touchcancel detected - resetting state');
             touchMoved = false;
             touchStartTime = 0;
             initialTouchPos = { x: 0, y: 0 };
@@ -810,13 +738,14 @@ function setupZoomAndDrag() {
                 stopDrag();
             }
         }, { passive: false });
-    }    function toggleZoom(element) {
-        debugLog(`toggleZoom called, current state: ${element.classList.contains('zoomed') ? 'zoomed' : 'normal'}`);
-        
+    }
+    
+    function toggleZoom(element) {
         if (element.classList.contains('zoomed')) {
             // Zoom out
             element.classList.remove('zoomed', 'dragging');
-            element.style.transform = '';            element.style.transformOrigin = 'center center';
+            element.style.transform = '';
+            element.style.transformOrigin = 'center center';
             currentX = 0;
             currentY = 0;
         } else {
@@ -825,10 +754,9 @@ function setupZoomAndDrag() {
             element.style.transformOrigin = 'center center';
             element.style.transform = 'scale(2)';
         }
-    }    function startDrag(event, element) {
-        console.log('startDrag called');
-        debugLog('startDrag called');
-        
+    }
+    
+    function startDrag(event, element) {
         isDragging = true;
         element.classList.add('dragging');
         
@@ -838,19 +766,14 @@ function setupZoomAndDrag() {
             // Touch event
             clientX = event.touches[0].clientX;
             clientY = event.touches[0].clientY;
-            debugLog(`Touch coordinates: ${clientX}, ${clientY}`);
         } else {
             // Mouse event
             clientX = event.clientX;
             clientY = event.clientY;
-            debugLog(`Mouse coordinates: ${clientX}, ${clientY}`);
         }
         
         startX = clientX - currentX;
         startY = clientY - currentY;
-        
-        debugLog(`Drag started: startX=${startX}, startY=${startY}, currentX=${currentX}, currentY=${currentY}`);
-        console.log(`Drag started: startX=${startX}, startY=${startY}, currentX=${currentX}, currentY=${currentY}`);
 
         // Mouse events
         document.addEventListener('mousemove', drag, { passive: false });
@@ -860,10 +783,9 @@ function setupZoomAndDrag() {
         document.addEventListener('touchmove', touchDrag, { passive: false });
         document.addEventListener('touchend', stopDrag);
         document.addEventListener('touchcancel', stopDrag);
-        
-        console.log('Event listeners attached for dragging');
-        debugLog('Event listeners attached for dragging');
-    }    function drag(e) {
+    }
+    
+    function drag(e) {
         if (!isDragging) return;
         
         e.preventDefault();
@@ -873,9 +795,10 @@ function setupZoomAndDrag() {
         currentY = e.clientY - startY;
         
         updateTransform();
-    }function touchDrag(e) {
+    }
+    
+    function touchDrag(e) {
         if (!isDragging || e.touches.length !== 1) {
-            debugLog(`touchDrag ignored: isDragging=${isDragging}, touches=${e.touches.length}`);
             return;
         }
         e.preventDefault();
@@ -883,29 +806,39 @@ function setupZoomAndDrag() {
         currentX = e.touches[0].clientX - startX;
         currentY = e.touches[0].clientY - startY;
         
-        debugLog(`touchDrag: currentX=${currentX}, currentY=${currentY}`);
         updateTransform();
-    }function updateTransform() {
+    }    function updateTransform() {
         const elements = document.querySelectorAll('.zoomed');
-        debugLog(`updateTransform: found ${elements.length} zoomed elements, currentX=${currentX}, currentY=${currentY}`);
         
         elements.forEach(element => {
-            // Get the container bounds for better drag limiting
-            const containerRect = element.parentElement.getBoundingClientRect();
+            // Get the actual rendered dimensions (after CSS constraints)
             const elementRect = element.getBoundingClientRect();
+            const containerRect = element.parentElement.getBoundingClientRect();
             
-            // More generous drag bounds - allow moving the 2x scaled image around
-            const maxX = Math.max(100, containerRect.width * 0.3);
-            const maxY = Math.max(100, containerRect.height * 0.3);
+            // Use the ACTUAL rendered size before scaling
+            const renderedWidth = elementRect.width;
+            const renderedHeight = elementRect.height;
+            
+            // For a 2x scaled image, to see all edges we need to move by:
+            // - Half the rendered size to see the "overflow" edges
+            // - Plus the full rendered size to see the "opposite" edges
+            // This means we need bounds equal to the full rendered dimensions
+            
+            const maxX = Math.max(200, renderedWidth);
+            const maxY = Math.max(200, renderedHeight);
             
             const boundedX = Math.max(-maxX, Math.min(maxX, currentX));
             const boundedY = Math.max(-maxY, Math.min(maxY, currentY));
             
             const transformString = `scale(2) translate(${boundedX / 2}px, ${boundedY / 2}px)`;
             element.style.transform = transformString;
-            debugLog(`Applied transform: ${transformString} (bounds: ±${maxX}, ±${maxY})`);
+            
+            // Debug info (remove this after testing)
+            console.log('Drag bounds:', { maxX, maxY, currentX, currentY, boundedX, boundedY, renderedWidth, renderedHeight });
         });
-    }    function stopDrag() {
+    }
+    
+    function stopDrag() {
         if (!isDragging) return;
         
         isDragging = false;
@@ -974,78 +907,310 @@ function setupZoomAndDrag() {
     });
 }
 
-// Test function to load a sample image for mobile debugging
-function loadTestImage() {
-    debugLog('Loading test image for mobile debugging');
+// Teapot setup and event handling
+function setupTeapot() {
+    const teapot = document.getElementById('teapot');
+    const teapotElement = teapot.querySelector('.teapot');
+    const rippleContainer = document.getElementById('rippleContainer');
+    const steamContainer = teapot.querySelector('.steam-container');    // Ensure teapot stays fixed positioned
+    function enforceTeapotPosition() {
+        teapot.style.position = 'fixed';
+        teapot.style.top = '10px';
+        teapot.style.left = '10px';
+        teapot.style.transform = 'none';
+        teapot.style.transition = 'none';
+        teapot.style.right = 'auto';
+        teapot.style.bottom = 'auto';
+        teapot.style.margin = '0';
+        teapot.style.padding = '0';
+        teapot.style.float = 'none';
+        teapot.style.display = 'block';
+        teapot.style.zIndex = '9999';
+        // Remove any webkit transforms that might interfere
+        teapot.style.webkitTransform = 'none';
+        teapot.style.mozTransform = 'none';
+        teapot.style.msTransform = 'none';
+        teapot.style.oTransform = 'none';
+        // Prevent any CSS animations that might move it
+        teapot.style.animation = 'none';
+        teapot.style.webkitAnimation = 'none';
+    }    // Call on setup and periodically to prevent drift
+    enforceTeapotPosition();
+    setInterval(enforceTeapotPosition, 50); // Very frequent enforcement
     
-    // Create a simple test image with canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 300;
-    const ctx = canvas.getContext('2d');
+    // Also enforce on scroll and resize
+    window.addEventListener('scroll', enforceTeapotPosition);
+    window.addEventListener('resize', enforceTeapotPosition);
+    window.addEventListener('orientationchange', enforceTeapotPosition);
     
-    // Draw a simple test pattern with better mobile-friendly design
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(0, 0, 400, 300);
+    // Add mutation observer to prevent any external changes to teapot positioning
+    const observer = new MutationObserver(() => {
+        enforceTeapotPosition();
+    });
     
-    // Add a border
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(0, 0, 400, 300);
-    
-    // Add text instructions
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('📱 MOBILE ZOOM TEST', 200, 50);
-    
-    ctx.font = '16px Arial';
-    ctx.fillText('👆 TAP to zoom in/out', 200, 100);
-    ctx.fillText('✋ DRAG when zoomed', 200, 130);
-    ctx.fillText('📍 Check debug info above', 200, 160);
-    
-    // Add visual elements for better testing
-    ctx.fillStyle = '#dc3545';
-    ctx.fillRect(50, 200, 60, 60);
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText('RED', 80, 235);
-    
-    ctx.fillStyle = '#28a745';
-    ctx.fillRect(150, 200, 60, 60);
-    ctx.fillStyle = 'white';
-    ctx.fillText('GREEN', 180, 235);
-    
-    ctx.fillStyle = '#007bff';
-    ctx.fillRect(250, 200, 60, 60);
-    ctx.fillStyle = 'white';
-    ctx.fillText('BLUE', 280, 235);
-    
-    // Convert to data URL and set as test image
-    const dataURL = canvas.toDataURL('image/png');
-    
-    // Create an image element
-    const img = new Image();
-    img.onload = function() {
-        currentImage = img;
-        updateContainerSize(img);
-        displayImagePreview(img);
-        hideError();
+    observer.observe(teapot, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
+      teapot.addEventListener('click', function() {
+        if (isTeaPouring) return; // Prevent multiple clicks while animation is running
+        isTeaPouring = true;
         
-        debugLog('Test image loaded successfully');
+        // Mark as clicked to hide the hint
+        teapot.classList.add('clicked');
         
-        // Auto-select a background for testing
-        if (selectedBackground === 'original') {
-            displayOriginalImage();
-        } else {
-            processImage();
+        // NO TRANSFORM - Keep teapot completely fixed
+        // Hide steam when pouring
+        steamContainer.style.opacity = '0';
+        
+        // Start pouring animation
+        teapotElement.classList.add('pouring');
+        
+        // Create tea drops with slight delay
+        setTimeout(() => {
+            createTeaDrops(teapot);
+        }, 500);
+        
+        // Show ripple container with delay
+        setTimeout(() => {
+            rippleContainer.classList.add('active');
+            createRipples();
+        }, 1200);        // Reset after animation completes
+        setTimeout(() => {
+            teapotElement.classList.remove('pouring');
+            isTeaPouring = false;
+            
+            // Enforce positioning based on screen size
+            enforceTeapotPosition();
+            
+            // Show steam again
+            steamContainer.style.opacity = '0.7';
+        }, 6000);
+        
+        // Reset ripples after a longer delay
+        setTimeout(() => {
+            rippleContainer.classList.remove('active');
+            rippleContainer.innerHTML = '';
+        }, 8000);
+    });
+      // Add pulse animation to teapot to attract attention - DISABLED to prevent movement
+    /*
+    setTimeout(() => {
+        teapot.style.animation = 'teapotPulse 3s infinite ease-in-out';
+    }, 3000);
+    */
+      // Set up mouse movement interaction - DISABLED to keep teapot fixed
+    // setupTeapotMovement();
+}
+
+// Add teapot follow movement
+function setupTeapotMovement() {
+    const teapot = document.getElementById('teapot');
+    let isMoving = false;
+    
+    // DISABLED - Add subtle movement to teapot based on mouse position
+    /*
+    document.addEventListener('mousemove', function(e) {
+        if (isTeaPouring) return; // Don't move while pouring
+        
+        // Calculate rotation based on mouse position
+        const maxRotation = 8;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Map mouse position to rotation angles
+        const rotateY = maxRotation * (0.5 - (e.clientX / windowWidth));
+        const rotateX = maxRotation * (0.5 - (e.clientY / windowHeight));
+        
+        // Apply subtle rotation if not actively pouring
+        if (!isMoving) {
+            isMoving = true;
+            teapot.style.transition = 'transform 2s ease';
+            teapot.style.transform = `perspective(1000px) rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+            
+            setTimeout(() => {
+                isMoving = false;
+            }, 100);
         }
-    };
+    });
+    */
+}
+
+function createTeaDrops(teapot) {
+    const teapotRect = teapot.getBoundingClientRect();
+    // Adjust spout position - teapot spout should be on the right side of the teapot
+    // Based on typical Chinese teapot design, spout is usually at the front-right
+    const startX = teapotRect.left + (teapotRect.width * 0.85); // 85% across the width (right side)
+    const startY = teapotRect.top + (teapotRect.height * 0.6); // 60% down from top (middle-lower)
     
-    img.onerror = function() {
-        debugLog('Failed to load test image');
-        showError('Failed to load test image');
-    };
+    // Calculate a shorter distance for the tea drops
+    const maxDropDistance = window.innerWidth * 0.3; // Reduced length - about 30% of screen width
+    const landingY = startY + Math.min(250, window.innerHeight * 0.25); // Shorter drop distance
     
-    img.src = dataURL;
+    for (let i = 0; i < 15; i++) { // Reduced number of drops
+        setTimeout(() => {
+            const drop = document.createElement('div');
+            drop.className = 'tea-drop';
+            drop.style.left = `${startX}px`;
+            drop.style.top = `${startY}px`;
+            
+            // Random horizontal variation for natural flow - flowing to the right from left teapot
+            const randomOffset = Math.random() * 35 + 15; // More consistent rightward flow
+            const randomSize = 7 + Math.random() * 5; // Slightly smaller drops
+            drop.style.width = `${randomSize}px`;
+            drop.style.height = `${randomSize * 1.5}px`;
+            drop.style.transform = `translateX(${randomOffset}px)`;
+            
+            document.body.appendChild(drop);            // Animate the drop falling with physics - shorter duration for reduced length
+            requestAnimationFrame(() => {
+                const fallDuration = 0.8 + Math.random() * 0.4; // More consistent, shorter duration
+                drop.style.transition = 'transform 1.5s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 1.5s linear';
+                drop.style.animation = `drop-fall ${fallDuration}s cubic-bezier(0.2, 0.8, 0.3, 1) forwards`;
+                drop.style.opacity = '0.7';
+                
+                // Create splash effect when drop lands (responsive timing)
+                setTimeout(() => {
+                    createSplash(startX + randomOffset + (i * 2), landingY);
+                }, fallDuration * 1000 * 0.95); // More precise timing
+            });
+            
+            // Remove the drop after animation
+            setTimeout(() => {
+                if (document.body.contains(drop)) {
+                    document.body.removeChild(drop);
+                }
+            }, 2000); // Reduced cleanup time
+        }, i * 110); // Slightly faster timing for more natural flow
+    }
+}
+
+// Add ripple effect when drops hit the ripple container
+function createSplash(x, y) {
+    const rippleContainer = document.getElementById('rippleContainer');
+    const isRippleActive = rippleContainer.classList.contains('active');
+    
+    // Only create splash if ripple container is active
+    if (!isRippleActive) return;
+    
+    const splash = document.createElement('div');
+    splash.className = 'splash';
+    splash.style.left = `${x}px`;
+    splash.style.top = `${y}px`;
+    document.body.appendChild(splash);
+    
+    // Create a ripple where the drop lands
+    if (Math.random() > 0.3) { // Create ripples for more drops
+        const ripple = document.createElement('div');
+        ripple.className = 'ripple';
+        
+        // Position relative to ripple container
+        const containerRect = rippleContainer.getBoundingClientRect();
+        const relativeX = ((x - containerRect.left) / containerRect.width) * 100;
+        const relativeY = ((y - containerRect.top) / containerRect.height) * 100;
+        
+        ripple.style.left = `${relativeX}%`;
+        ripple.style.top = `${relativeY}%`;
+        
+        // Smaller ripple for drops
+        const size = 8 + Math.random() * 30; // Slightly smaller ripples
+        ripple.style.width = `${size}px`;
+        ripple.style.height = `${size}px`;
+        
+        // Faster animation for drop ripples
+        const duration = 0.8 + Math.random() * 1.2; // Faster ripple animation
+        ripple.style.animationDuration = `${duration}s`;
+        
+        // Higher opacity for drop ripples
+        const opacity = 0.6 + Math.random() * 0.3;
+        const teaColor = getComputedStyle(document.documentElement).getPropertyValue('--tea-drop-color').trim();
+        
+        if (teaColor.startsWith('rgba')) {
+            const colorValues = teaColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/);
+            if (colorValues) {
+                ripple.style.backgroundColor = `rgba(${colorValues[1]}, ${colorValues[2]}, ${colorValues[3]}, ${opacity})`;
+            }
+        } else {
+            ripple.style.backgroundColor = `rgba(173, 115, 38, ${opacity})`;
+        }
+        
+        rippleContainer.appendChild(ripple);
+        
+        // Remove the ripple after animation
+        setTimeout(() => {
+            if (ripple.parentNode === rippleContainer) {
+                rippleContainer.removeChild(ripple);
+            }
+        }, duration * 1000);
+    }
+    
+    // Remove the splash after animation completes
+    setTimeout(() => {
+        if (document.body.contains(splash)) {
+            document.body.removeChild(splash);
+        }
+    }, 1000);
+}
+
+function createRipples() {
+    const rippleContainer = document.getElementById('rippleContainer');
+    rippleContainer.innerHTML = '';
+    
+    // Create initial ripples
+    for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+            createRipple();
+        }, i * 300);
+    }
+    
+    // Continue creating ripples at intervals
+    const rippleInterval = setInterval(() => {
+        createRipple();
+    }, 600);
+    
+    // Stop creating ripples after 6 seconds
+    setTimeout(() => {
+        clearInterval(rippleInterval);
+    }, 6000);
+}
+
+function createRipple() {
+    const rippleContainer = document.getElementById('rippleContainer');
+    const ripple = document.createElement('div');
+    ripple.className = 'ripple';
+    
+    // Random position
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    ripple.style.left = `${x}%`;
+    ripple.style.top = `${y}%`;
+    
+    // Random size
+    const size = 30 + Math.random() * 150;
+    ripple.style.width = `${size}px`;
+    ripple.style.height = `${size}px`;
+    
+    // Random duration and delay
+    const duration = 2 + Math.random() * 3;
+    ripple.style.animationDuration = `${duration}s`;
+      // Random opacity
+    const opacity = 0.3 + Math.random() * 0.5;
+    const teaColor = getComputedStyle(document.documentElement).getPropertyValue('--tea-drop-color').trim();
+    
+    // Use the base tea color with adjusted opacity
+    if (teaColor.startsWith('rgba')) {
+        // Extract RGB values and apply new opacity
+        const colorValues = teaColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/);
+        if (colorValues) {
+            ripple.style.backgroundColor = `rgba(${colorValues[1]}, ${colorValues[2]}, ${colorValues[3]}, ${opacity})`;
+        }
+    } else {
+        // Fallback if variable not available
+        ripple.style.backgroundColor = `rgba(173, 115, 38, ${opacity})`;    }rippleContainer.appendChild(ripple);
+    
+    // Remove the ripple after animation
+    setTimeout(() => {
+        if (ripple.parentNode === rippleContainer) {
+            rippleContainer.removeChild(ripple);
+        }
+    }, duration * 1000);
 }

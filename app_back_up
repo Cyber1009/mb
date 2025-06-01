@@ -1,0 +1,1107 @@
+// Global variables
+let cv = null;
+let currentImage = null;
+let selectedBackground = 'original';
+let isTeaPouring = false;
+
+// Background options - Traditional Chinese calligraphy inspired
+const backgroundOptions = [
+    { name: 'Original', value: 'original', color: 'transparent', isOriginal: true },
+    { name: 'Pure White', value: 'default', color: '#ffffff' },
+    { name: 'Rice Paper', value: 'rice', color: '#faf8f3' },
+    { name: 'Aged Parchment', value: 'parchment', color: '#f5f1e8' },
+    { name: 'Silk Scroll', value: 'silk', color: '#f7f3e9' },
+    { name: 'Bamboo Paper', value: 'bamboo', color: '#f2f0e6' },
+    { name: 'Tea Stained', value: 'tea', color: '#f0ede4' }
+];
+
+// Mobile detection function
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           ('ontouchstart' in window) ||
+           (navigator.maxTouchPoints > 0) ||
+           (navigator.msMaxTouchPoints > 0);
+}
+
+// Wait for OpenCV to load
+function onOpenCvReady() {
+    cv = window.cv;
+    initializeApp();
+}
+
+// Fallback initialization if OpenCV doesn't load
+window.addEventListener('load', function() {
+    // Wait a bit for OpenCV to potentially load
+    setTimeout(function() {
+        if (!cv && window.cv) {
+            cv = window.cv;
+            initializeApp();
+        } else if (!cv) {
+            initializeApp();
+        }
+    }, 2000);
+});
+
+function initializeApp() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            populateBackgroundOptions();
+            loadBackgroundImages();
+        });
+    } else {
+        setupEventListeners();
+        populateBackgroundOptions();
+        loadBackgroundImages();
+    }
+}
+
+function setupEventListeners() {
+    // File input
+    document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+    
+    // Threshold slider
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    thresholdSlider.addEventListener('input', function() {
+        document.getElementById('thresholdValue').textContent = this.value;
+        if (currentImage) {
+            processImageRealtime(); // Lightweight real-time updates
+        }
+    });
+    
+    // Download button
+    document.getElementById('downloadBtn').addEventListener('click', downloadResult);
+    
+    // Background selection
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.background-option')) {
+            selectBackground(e.target.closest('.background-option'));
+        }
+    });
+    
+    // Enhanced zoom and drag functionality
+    setupZoomAndDrag();
+    
+    // Window resize handler for mobile orientation changes
+    window.addEventListener('resize', function() {
+        if (currentImage) {
+            updateContainerSize(currentImage);
+        }
+    });
+    
+    // Teapot click handler
+    setupTeapot();
+    
+    // Teapot movement based on mouse position
+    setupTeapotMovement();
+}
+
+function populateBackgroundOptions() {
+    const container = document.getElementById('backgroundSelect');
+    container.innerHTML = '';
+    
+    backgroundOptions.forEach((bg, index) => {
+        const option = document.createElement('div');
+        option.className = `background-option ${index === 0 ? 'selected' : ''}`;
+        option.dataset.bg = bg.value;
+        
+        const preview = document.createElement('div');
+        preview.style.width = '50px';
+        preview.style.height = '50px';
+        preview.style.border = '1px solid #e8e6e0';
+        preview.style.borderRadius = '6px';
+        preview.className = 'background-preview';
+        
+        if (bg.isOriginal) {
+            // Special styling for original option
+            preview.style.background = 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)';
+            preview.style.backgroundSize = '8px 8px';
+            preview.style.backgroundPosition = '0 0, 0 4px, 4px -4px, -4px 0px';
+            preview.innerHTML = '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666;">📷</div>';
+        } else {
+            preview.style.backgroundColor = bg.color;
+        }
+        
+        const label = document.createElement('div');
+        label.textContent = bg.name;
+        label.className = 'background-label';
+        
+        option.appendChild(preview);
+        option.appendChild(label);
+        container.appendChild(option);
+    });
+}
+
+function loadBackgroundImages() {
+    // Load actual background images from the background folder
+    const backgroundImages = ['background.jpg', 'background_h.jpg', 'background_v.jpg'];
+    
+    backgroundImages.forEach(filename => {
+        const option = document.createElement('div');
+        option.className = 'background-option';
+        option.dataset.bg = filename;
+        
+        const img = document.createElement('img');
+        img.src = `background/${filename}`;
+        img.className = 'background-preview';
+        img.alt = filename;
+        img.onerror = function() {
+            // If image fails to load, remove this option
+            option.remove();
+        };
+        
+        const label = document.createElement('div');
+        label.textContent = filename.replace('.jpg', '').replace('_', ' ').toUpperCase();
+        label.className = 'background-label';
+        
+        option.appendChild(img);
+        option.appendChild(label);
+        document.getElementById('backgroundSelect').appendChild(option);
+    });
+}
+
+function selectBackground(option) {
+    // Remove selected class from all options
+    document.querySelectorAll('.background-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked option
+    option.classList.add('selected');
+    selectedBackground = option.dataset.bg;
+    
+    // Update display based on selection
+    if (currentImage) {
+        if (selectedBackground === 'original') {
+            // Show original image preview
+            displayOriginalImage();
+        } else {
+            // Process image with selected background
+            processImageRealtime(); // Lightweight real-time updates
+        }
+    }
+}
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+        showError('Please select a valid image file (PNG, JPG, JPEG)');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            currentImage = img;
+            updateContainerSize(img);
+            displayImagePreview(img);
+            hideError();
+            
+            // Auto-process on image load if not original background
+            if (selectedBackground !== 'original') {
+                processImage();
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function updateContainerSize(img) {
+    const container = document.querySelector('.canvas-container');
+    if (!container || !img) return;
+    
+    // Calculate aspect ratio
+    const aspectRatio = img.width / img.height;
+    
+    // Remove existing aspect ratio classes
+    container.classList.remove('landscape', 'portrait', 'square');
+    
+    // Add appropriate class based on aspect ratio
+    if (aspectRatio > 1.3) {
+        container.classList.add('landscape');
+    } else if (aspectRatio < 0.7) {
+        container.classList.add('portrait');
+    } else {
+        container.classList.add('square');
+    }
+    
+    // For mobile devices, adjust min-height more aggressively
+    if (window.innerWidth <= 768) {
+        if (aspectRatio > 1.5) {
+            container.style.minHeight = '200px';
+        } else if (aspectRatio < 0.6) {
+            container.style.minHeight = '400px';
+        } else {
+            container.style.minHeight = '300px';
+        }
+    }
+}
+
+function displayImagePreview(img) {
+    const preview = document.getElementById('imagePreview');
+    const canvas = document.getElementById('resultCanvas');
+    const placeholder = document.getElementById('previewInstructions');
+    
+    preview.src = img.src;
+    
+    // Hide placeholder when image is loaded
+    if (placeholder) {
+        placeholder.style.display = 'none';
+    }
+    
+    // Show appropriate preview based on selected background
+    if (selectedBackground === 'original') {
+        displayOriginalImage();
+    } else {
+        // For non-original backgrounds, we'll process and show canvas
+        preview.style.display = 'none';
+        canvas.style.display = 'none'; // Will be shown after processing
+    }
+    
+    updateContainerSize(img);
+    
+    // IMPORTANT: Re-setup zoom and drag events when image is displayed
+    setTimeout(() => {
+        const preview = document.getElementById('imagePreview');
+        const canvas = document.getElementById('resultCanvas');
+        
+        if (preview && preview.style.display !== 'none') {
+            setupImageEvents(preview);
+        }
+        if (canvas && canvas.style.display !== 'none') {
+            setupImageEvents(canvas);
+        }
+    }, 100); // Small delay to ensure DOM is updated
+}
+
+function displayOriginalImage() {
+    const preview = document.getElementById('imagePreview');
+    const canvas = document.getElementById('resultCanvas');
+    const placeholder = document.getElementById('previewInstructions');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    // Hide placeholder
+    if (placeholder) {
+        placeholder.style.display = 'none';
+    }
+    
+    // Show original image, hide processed canvas
+    preview.style.display = 'block';
+    canvas.style.display = 'none';
+    downloadBtn.style.display = 'inline-block'; // Allow download of original
+    
+    // IMPORTANT: Setup zoom events for the displayed image
+    setTimeout(() => {
+        setupImageEvents(preview);
+    }, 50);
+}
+
+// Debounce function (kept for potential future use, but not used for threshold slider)
+let processTimeout;
+function debounceProcess() {
+    clearTimeout(processTimeout);
+    processTimeout = setTimeout(processImage, 300);
+}
+
+// Lightweight real-time processing without UI loading indicators
+function processImageRealtime() {
+    if (!cv || !currentImage) {
+        return;
+    }
+    
+    // If original is selected, just show the original image
+    if (selectedBackground === 'original') {
+        displayOriginalImage();
+        return;
+    }
+    
+    try {
+        // Create canvas for input image
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = currentImage.width;
+        canvas.height = currentImage.height;
+        ctx.drawImage(currentImage, 0, 0);
+        
+        // Load image into OpenCV
+        const src = cv.imread(canvas);
+        const gray = new cv.Mat();
+        const binary = new cv.Mat();
+        
+        // Convert to grayscale
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        
+        // Apply threshold
+        const threshValue = parseInt(document.getElementById('thresholdSlider').value);
+        cv.threshold(gray, binary, threshValue, 255, cv.THRESH_BINARY_INV);
+        
+        // Remove small noise (morphological opening)
+        const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2));
+        cv.morphologyEx(binary, binary, cv.MORPH_OPEN, kernel, new cv.Point(-1, -1), 1);
+        
+        // Create result image with background
+        const result = createBackgroundImage(canvas.width, canvas.height);
+        
+        // Apply calligraphy to background
+        applyCalligraphyToBackground(binary, result);
+        
+        // Display preview (this will switch from original to processed)
+        displayResult(result);
+        
+        // Cleanup
+        src.delete();
+        gray.delete();
+        binary.delete();
+        kernel.delete();
+    } catch (error) {
+        // Silently handle real-time processing errors
+        // Don't show error UI for real-time updates
+    }
+}
+
+function processImage() {
+    if (!cv || !currentImage) {
+        showError('OpenCV not loaded or no image selected');
+        return;
+    }
+    
+    // If original is selected, just show the original image
+    if (selectedBackground === 'original') {
+        displayOriginalImage();
+        return;
+    }
+    
+    showLoading();
+    hideError();
+    
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+        try {
+            updateProgress(10, 'Preparing the canvas...');
+            
+            // Create canvas for input image
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+            ctx.drawImage(currentImage, 0, 0);
+            
+            updateProgress(20, 'Reading the image essence...');
+            
+            // Load image into OpenCV
+            const src = cv.imread(canvas);
+            const gray = new cv.Mat();
+            const binary = new cv.Mat();
+            
+            updateProgress(40, 'Converting to ink wash...');
+            
+            // Convert to grayscale
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            
+            updateProgress(60, 'Applying brush sensitivity...');
+            
+            // Apply threshold
+            const threshValue = parseInt(document.getElementById('thresholdSlider').value);
+            cv.threshold(gray, binary, threshValue, 255, cv.THRESH_BINARY_INV);
+            
+            updateProgress(70, 'Refining brush strokes...');
+            
+            // Remove small noise (morphological opening)
+            const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(2, 2));
+            cv.morphologyEx(binary, binary, cv.MORPH_OPEN, kernel, new cv.Point(-1, -1), 1);
+            
+            updateProgress(80, 'Preparing traditional paper...');
+            
+            // Create preview image with background
+            const result = createBackgroundImage(canvas.width, canvas.height);
+            
+            updateProgress(90, 'Harmonizing ink and paper...');
+            
+            // Apply calligraphy to background
+            applyCalligraphyToBackground(binary, result);
+            
+            updateProgress(100, 'Creating masterpiece...');
+            
+            // Display preview
+            displayResult(result);
+            
+            // Cleanup
+            src.delete();
+            gray.delete();
+            binary.delete();
+            kernel.delete();
+            
+            hideLoading();
+        } catch (error) {
+            showError('Error processing image: ' + error.message);
+            hideLoading();
+        }
+    }, 100);
+}
+
+function createBackgroundImage(width, height) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Handle original option - return original image as background
+    if (selectedBackground === 'original') {
+        ctx.drawImage(currentImage, 0, 0, width, height);
+        return canvas;
+    }
+    
+    if (selectedBackground === 'default' || backgroundOptions.find(bg => bg.value === selectedBackground)) {
+        // Use solid color background
+        const bgOption = backgroundOptions.find(bg => bg.value === selectedBackground);
+        const color = bgOption ? bgOption.color : '#ffffff';
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, width, height);
+    } else {
+        // Try to load background image
+        const bgImg = document.querySelector(`.background-option[data-bg="${selectedBackground}"] img`);
+        if (bgImg && bgImg.complete) {
+            ctx.drawImage(bgImg, 0, 0, width, height);
+        } else {
+            // Fallback to white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+        }
+    }
+    
+    return canvas;
+}
+
+function applyCalligraphyToBackground(binaryMat, backgroundCanvas) {
+    const ctx = backgroundCanvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+    const data = imageData.data;
+    
+    // Get binary image data
+    const binaryData = binaryMat.data;
+    const width = binaryMat.cols;
+    const height = binaryMat.rows;
+    
+    // Apply calligraphy (set pixels to black where binary is white)
+    for (let i = 0; i < height; i++) {
+        for (let j = 0; j < width; j++) {
+            const binaryIndex = i * width + j;
+            const imageIndex = (i * width + j) * 4;
+            
+            if (binaryData[binaryIndex] === 255) { // White in binary = text
+                data[imageIndex] = 0;     // R
+                data[imageIndex + 1] = 0; // G
+                data[imageIndex + 2] = 0; // B
+                // Alpha remains unchanged
+            }
+        }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function displayResult(canvas) {
+    const resultCanvas = document.getElementById('resultCanvas');
+    const preview = document.getElementById('imagePreview');
+    const placeholder = document.getElementById('previewInstructions');
+    const ctx = resultCanvas.getContext('2d');
+    
+    resultCanvas.width = canvas.width;
+    resultCanvas.height = canvas.height;
+    ctx.drawImage(canvas, 0, 0);
+    
+    // Hide placeholder
+    if (placeholder) {
+        placeholder.style.display = 'none';
+    }
+    
+    // Show processed canvas, hide original image
+    resultCanvas.style.display = 'block';
+    preview.style.display = 'none';
+    
+    document.getElementById('downloadBtn').style.display = 'inline-block';
+    
+    // IMPORTANT: Setup zoom events for the displayed canvas
+    setTimeout(() => {
+        setupImageEvents(resultCanvas);
+    }, 50);
+}
+
+function downloadResult() {
+    let canvas;
+    
+    if (selectedBackground === 'original') {
+        // Create a canvas with the original image for download
+        canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = currentImage.width;
+        canvas.height = currentImage.height;
+        ctx.drawImage(currentImage, 0, 0);
+    } else {
+        // Use the processed result canvas
+        canvas = document.getElementById('resultCanvas');
+    }
+    
+    if (!canvas) return;
+    
+    // Create download link with traditional naming
+    canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const suffix = selectedBackground === 'original' ? 'original' : 'ink_harmony';
+        a.download = `${suffix}_${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 'image/jpeg', 0.9);
+}
+
+function showLoading() {
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    document.getElementById('progressContainer').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loadingSpinner').style.display = 'none';
+    document.getElementById('progressContainer').style.display = 'none';
+}
+
+function updateProgress(percent, text) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    progressBar.style.width = percent + '%';
+    progressText.textContent = text;
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+function hideError() {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.style.display = 'none';
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof cv !== 'undefined') {
+        onOpenCvReady();
+    }
+});
+
+// Enhanced zoom and drag functionality
+function setupZoomAndDrag() {
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let currentX = 0, currentY = 0;
+    let initialTransform = { x: 0, y: 0 };
+    
+    // Make setupImageEvents globally accessible
+    window.setupImageEvents = setupImageEvents;
+    
+    function setupImageEvents(element) {
+        if (!element) {
+            return;
+        }
+
+        // Check if element already has zoom events
+        if (element.hasAttribute('data-zoom-setup')) {
+            return;
+        }
+        
+        let touchStartTime = 0;
+        let touchMoved = false;
+        let initialTouchPos = { x: 0, y: 0 };
+        
+        // Mark element as having zoom setup
+        element.setAttribute('data-zoom-setup', 'true');
+        
+        // Prevent context menu on images for better drag experience
+        element.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        // Click to zoom toggle (only for desktop or when no touch support)
+        element.addEventListener('click', function(e) {
+            // Only handle click if it's not a touch device OR it's a mouse click on mobile
+            if (!isMobileDevice() || (e.detail && e.detail > 0)) {
+                e.preventDefault();
+                toggleZoom(element);
+            }
+        });
+        
+        // Mouse events for drag (desktop)
+        element.addEventListener('mousedown', function(e) {
+            // Only handle left mouse button
+            if (e.button !== 0) return;
+            
+            if (element.classList.contains('zoomed')) {
+                e.preventDefault();
+                e.stopPropagation(); // Important for Chrome
+                startDrag(e, element);
+            }
+        });
+        
+        // Touch events for mobile
+        element.addEventListener('touchstart', function(e) {
+            // Only handle single touches
+            if (e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            initialTouchPos = { x: touch.clientX, y: touch.clientY };
+            touchStartTime = Date.now();
+            touchMoved = false;
+            
+            // Only prevent default for zoomed images to avoid interfering with normal scrolling
+            if (element.classList.contains('zoomed')) {
+                e.preventDefault();
+                startDrag(e, element);
+            }
+        }, { passive: false });
+        
+        element.addEventListener('touchmove', function(e) {
+            if (e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            const deltaX = Math.abs(touch.clientX - initialTouchPos.x);
+            const deltaY = Math.abs(touch.clientY - initialTouchPos.y);
+            
+            // Mark as moved if movement is significant (more than 5 pixels)
+            if (deltaX > 5 || deltaY > 5) {
+                touchMoved = true;
+            }
+            
+            // If we're dragging a zoomed image, handle the drag movement
+            if (element.classList.contains('zoomed') && isDragging) {
+                e.preventDefault();
+                touchDrag(e);
+            }
+        }, { passive: false });
+        
+        element.addEventListener('touchend', function(e) {
+            // Only handle single touch end
+            if (e.changedTouches.length !== 1) return;
+            
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Stop any ongoing drag first
+            if (isDragging) {
+                stopDrag();
+            }
+            
+            // Detect tap: quick touch (< 500ms) with minimal movement
+            const isTap = touchDuration < 500 && !touchMoved;
+            
+            if (isTap) {
+                e.preventDefault(); // Prevent ghost clicks
+                toggleZoom(element);
+            }
+            
+            // Reset touch state
+            touchMoved = false;
+            touchStartTime = 0;
+            initialTouchPos = { x: 0, y: 0 };
+        }, { passive: false });
+        
+        // Handle touch cancel (important for mobile)
+        element.addEventListener('touchcancel', function(e) {
+            touchMoved = false;
+            touchStartTime = 0;
+            initialTouchPos = { x: 0, y: 0 };
+            
+            // Stop any ongoing drag
+            if (isDragging) {
+                stopDrag();
+            }
+        }, { passive: false });
+    }
+    
+    function toggleZoom(element) {
+        if (element.classList.contains('zoomed')) {
+            // Zoom out
+            element.classList.remove('zoomed', 'dragging');
+            element.style.transform = '';
+            element.style.transformOrigin = 'center center';
+            currentX = 0;
+            currentY = 0;
+        } else {
+            // Zoom in
+            element.classList.add('zoomed');
+            element.style.transformOrigin = 'center center';
+            element.style.transform = 'scale(2)';
+        }
+    }
+    
+    function startDrag(event, element) {
+        isDragging = true;
+        element.classList.add('dragging');
+        
+        // Get coordinates from either mouse or touch event
+        let clientX, clientY;
+        if (event.touches && event.touches.length > 0) {
+            // Touch event
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else {
+            // Mouse event
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+        
+        startX = clientX - currentX;
+        startY = clientY - currentY;
+
+        // Mouse events
+        document.addEventListener('mousemove', drag, { passive: false });
+        document.addEventListener('mouseup', stopDrag);
+        
+        // Touch events
+        document.addEventListener('touchmove', touchDrag, { passive: false });
+        document.addEventListener('touchend', stopDrag);
+        document.addEventListener('touchcancel', stopDrag);
+    }
+    
+    function drag(e) {
+        if (!isDragging) return;
+        
+        e.preventDefault();
+        e.stopPropagation(); // Add for Chrome compatibility
+        
+        currentX = e.clientX - startX;
+        currentY = e.clientY - startY;
+        
+        updateTransform();
+    }
+    
+    function touchDrag(e) {
+        if (!isDragging || e.touches.length !== 1) {
+            return;
+        }
+        e.preventDefault();
+        
+        currentX = e.touches[0].clientX - startX;
+        currentY = e.touches[0].clientY - startY;
+        
+        updateTransform();
+    }
+    
+    function updateTransform() {
+        const elements = document.querySelectorAll('.zoomed');
+        
+        elements.forEach(element => {
+            // Get the container bounds for better drag limiting
+            const containerRect = element.parentElement.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            
+            // More generous drag bounds - allow moving the 2x scaled image around
+            const maxX = Math.max(100, containerRect.width * 0.3);
+            const maxY = Math.max(100, containerRect.height * 0.3);
+            
+            const boundedX = Math.max(-maxX, Math.min(maxX, currentX));
+            const boundedY = Math.max(-maxY, Math.min(maxY, currentY));
+            
+            const transformString = `scale(2) translate(${boundedX / 2}px, ${boundedY / 2}px)`;
+            element.style.transform = transformString;
+        });
+    }
+    
+    function stopDrag() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        document.querySelectorAll('.dragging').forEach(el => {
+            el.classList.remove('dragging');
+        });
+        
+        // Remove event listeners
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchmove', touchDrag);
+        document.removeEventListener('touchend', stopDrag);
+        document.removeEventListener('touchcancel', stopDrag);
+    }
+
+    // Click/Touch outside to zoom out
+    function handleOutsideInteraction(e) {
+        const zoomedElements = document.querySelectorAll('.zoomed');
+        if (zoomedElements.length > 0 && !e.target.closest('canvas, .preview-image')) {
+            zoomedElements.forEach(element => {
+                element.classList.remove('zoomed', 'dragging');
+                element.style.transform = '';
+                element.style.transformOrigin = 'center center';
+            });
+            currentX = 0;
+            currentY = 0;
+        }
+    }
+
+    document.addEventListener('click', handleOutsideInteraction);
+    document.addEventListener('touchend', function(e) {
+        // Only handle if it's a single touch that ended
+        if (e.changedTouches.length === 1) {
+            handleOutsideInteraction(e);
+        }
+    });
+
+    // Setup events for existing elements
+    const imagePreview = document.getElementById('imagePreview');
+    const resultCanvas = document.getElementById('resultCanvas');
+    
+    setupImageEvents(imagePreview);
+    setupImageEvents(resultCanvas);
+
+    // Observer to setup events for dynamically created elements
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    if (node.matches('canvas, .preview-image')) {
+                        setupImageEvents(node);
+                    }
+                    // Also check children
+                    const images = node.querySelectorAll && node.querySelectorAll('canvas, .preview-image');
+                    if (images) {
+                        images.forEach(setupImageEvents);
+                    }
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+// Teapot setup and event handling
+function setupTeapot() {
+    const teapot = document.getElementById('teapot');
+    const teapotElement = teapot.querySelector('.teapot');
+    const rippleContainer = document.getElementById('rippleContainer');
+    const steamContainer = teapot.querySelector('.steam-container');
+    
+    teapot.addEventListener('click', function() {
+        if (isTeaPouring) return; // Prevent multiple clicks while animation is running
+        isTeaPouring = true;
+        
+        // Reset any transforms from mouse movement
+        teapot.style.transition = 'transform 0.3s ease';
+        teapot.style.transform = 'scale(1.2)';
+        
+        setTimeout(() => {
+            teapot.style.transform = 'scale(1.1)';
+        }, 200);
+        
+        // Hide steam when pouring
+        steamContainer.style.opacity = '0';
+        
+        // Start pouring animation
+        teapotElement.classList.add('pouring');
+        
+        // Create tea drops with slight delay
+        setTimeout(() => {
+            createTeaDrops(teapot);
+        }, 500);
+        
+        // Show ripple container with delay
+        setTimeout(() => {
+            rippleContainer.classList.add('active');
+            createRipples();
+        }, 1200);
+        
+        // Reset after animation completes
+        setTimeout(() => {
+            teapotElement.classList.remove('pouring');
+            isTeaPouring = false;
+            
+            // Reset transform to allow mouse movement again
+            teapot.style.transform = 'none';
+            
+            // Show steam again
+            steamContainer.style.opacity = '0.7';
+        }, 6000);
+        
+        // Reset ripples after a longer delay
+        setTimeout(() => {
+            rippleContainer.classList.remove('active');
+            rippleContainer.innerHTML = '';
+        }, 8000);
+    });
+    
+    // Add pulse animation to teapot to attract attention
+    setTimeout(() => {
+        teapot.style.animation = 'teapotPulse 3s infinite ease-in-out';
+    }, 3000);
+    
+    // Set up mouse movement interaction
+    setupTeapotMovement();
+}
+
+// Add teapot follow movement
+function setupTeapotMovement() {
+    const teapot = document.getElementById('teapot');
+    let isMoving = false;
+    
+    // Add subtle movement to teapot based on mouse position
+    document.addEventListener('mousemove', function(e) {
+        if (isTeaPouring) return; // Don't move while pouring
+        
+        // Calculate rotation based on mouse position
+        const maxRotation = 8;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Map mouse position to rotation angles
+        const rotateY = maxRotation * (0.5 - (e.clientX / windowWidth));
+        const rotateX = maxRotation * (0.5 - (e.clientY / windowHeight));
+        
+        // Apply subtle rotation if not actively pouring
+        if (!isMoving) {
+            isMoving = true;
+            teapot.style.transition = 'transform 2s ease';
+            teapot.style.transform = `perspective(1000px) rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+            
+            setTimeout(() => {
+                isMoving = false;
+            }, 100);
+        }
+    });
+}
+
+function createTeaDrops(teapot) {
+    const teapotRect = teapot.getBoundingClientRect();
+    const startX = teapotRect.right - 40; // Adjust spout position
+    const startY = teapotRect.bottom - 30;
+    
+    for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+            const drop = document.createElement('div');
+            drop.className = 'tea-drop';
+            drop.style.left = `${startX}px`;
+            drop.style.top = `${startY}px`;
+            
+            // Random horizontal variation for natural flow
+            const randomOffset = Math.random() * 20 - 5;
+            const randomSize = 8 + Math.random() * 7;
+            drop.style.width = `${randomSize}px`;
+            drop.style.height = `${randomSize * 1.5}px`;
+            drop.style.transform = `translateX(${randomOffset}px)`;
+            
+            document.body.appendChild(drop);
+            
+            // Animate the drop falling with physics
+            requestAnimationFrame(() => {
+                drop.style.transition = 'transform 2s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 2s linear';
+                drop.style.animation = `drop-fall ${1.2 + Math.random() * 0.8}s cubic-bezier(0.2, 0.8, 0.3, 1) forwards`;
+                drop.style.opacity = '0.7';
+                
+                // Create splash effect when drop hits bottom
+                const fallDuration = 1.2 + Math.random() * 0.8;
+                setTimeout(() => {
+                    createSplash(startX + randomOffset, window.innerHeight - 30);
+                }, fallDuration * 1000 * 0.95); // Slightly before animation ends
+            });
+            
+            // Remove the drop after animation
+            setTimeout(() => {
+                if (document.body.contains(drop)) {
+                    document.body.removeChild(drop);
+                }
+            }, 2500);
+        }, i * 120); // Adjust timing for more natural flow
+    }
+}
+
+// Create splash effect when tea drops hit the surface
+function createSplash(x, y) {
+    const splash = document.createElement('div');
+    splash.className = 'splash';
+    splash.style.left = `${x}px`;
+    splash.style.top = `${y}px`;
+    document.body.appendChild(splash);
+    
+    // Remove the splash after animation completes
+    setTimeout(() => {
+        if (document.body.contains(splash)) {
+            document.body.removeChild(splash);
+        }
+    }, 1000);
+}
+
+function createRipples() {
+    const rippleContainer = document.getElementById('rippleContainer');
+    rippleContainer.innerHTML = '';
+    
+    // Create initial ripples
+    for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+            createRipple();
+        }, i * 300);
+    }
+    
+    // Continue creating ripples at intervals
+    const rippleInterval = setInterval(() => {
+        createRipple();
+    }, 600);
+    
+    // Stop creating ripples after 6 seconds
+    setTimeout(() => {
+        clearInterval(rippleInterval);
+    }, 6000);
+}
+
+function createRipple() {
+    const rippleContainer = document.getElementById('rippleContainer');
+    const ripple = document.createElement('div');
+    ripple.className = 'ripple';
+    
+    // Random position
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    ripple.style.left = `${x}%`;
+    ripple.style.top = `${y}%`;
+    
+    // Random size
+    const size = 30 + Math.random() * 150;
+    ripple.style.width = `${size}px`;
+    ripple.style.height = `${size}px`;
+    
+    // Random duration and delay
+    const duration = 2 + Math.random() * 3;
+    ripple.style.animationDuration = `${duration}s`;
+      // Random opacity
+    const opacity = 0.3 + Math.random() * 0.5;
+    const teaColor = getComputedStyle(document.documentElement).getPropertyValue('--tea-drop-color').trim();
+    
+    // Use the base tea color with adjusted opacity
+    if (teaColor.startsWith('rgba')) {
+        // Extract RGB values and apply new opacity
+        const colorValues = teaColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/);
+        if (colorValues) {
+            ripple.style.backgroundColor = `rgba(${colorValues[1]}, ${colorValues[2]}, ${colorValues[3]}, ${opacity})`;
+        }
+    } else {
+        // Fallback if variable not available
+        ripple.style.backgroundColor = `rgba(173, 115, 38, ${opacity})`;
+    }rippleContainer.appendChild(ripple);
+    
+    // Remove the ripple after animation
+    setTimeout(() => {
+        if (ripple.parentNode === rippleContainer) {
+            rippleContainer.removeChild(ripple);
+        }
+    }, duration * 1000);
+}
