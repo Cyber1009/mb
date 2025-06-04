@@ -68,11 +68,11 @@ function initializeApp() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', async function() {
             setupEventListeners();
-            await populateBackgroundOptions();
+            // await populateBackgroundOptions();
         });
     } else {
         setupEventListeners();
-        populateBackgroundOptions(); // Initial call without aspect ratio
+        // populateBackgroundOptions(); // Initial call without aspect ratio
     }
 }
 
@@ -156,9 +156,9 @@ function discoverImageFiles(folderPath) {
     // Use a predefined list for each folder instead of testing each file
     const knownImagesByFolder = {
         'background/paper/': ['卷轴.jpg', '宣纸2.jpg', '宣纸3.jpg', '宣纸4.jpg', '竹编.jpg'],
-        'background/background_h/': ['背景1.jpg', '背景2.jpg'], // Add your horizontal images
-        'background/background_v/': ['背景3.jpg', '背景4.jpg'], // Add your vertical images
-        'app_background/': ['background_bamboo.jpg', 'background_bamboo_2.jpg', 'background_bamboo_3.jpg']
+        'background/background_h/': ['水墨.jpg', '水墨2.jpg', '粉荷.jpg', '鲤鱼.jpg'], // Updated with actual files
+        'background/background_v/': ['书卷.jpg', '水墨-竖.png', '水墨6.png'], // Updated with actual files
+        'app_background/': ['background_bamboo.jpg', 'background_bamboo_2.jpg', 'background_bamboo_3.jpg', 'background_bamboo_4.jpg']
     };
     
     return Promise.resolve(knownImagesByFolder[folderPath] || []);
@@ -342,6 +342,8 @@ function handleImageUpload(event) {
             currentImage = img;            updateContainerSize(img);
             await displayImagePreview(img);
             hideError();
+
+            showMainUIAfterImageUpload();
             
             // Auto-process on image load if not original background
             if (selectedBackground !== 'original') {
@@ -367,16 +369,16 @@ function showMainUIAfterImageUpload() {
     document.getElementById('downloadBtn').style.display = '';
 }
 
-// Patch image upload logic to call showMainUIAfterImageUpload
-const imageInput = document.getElementById('imageInput');
-if (imageInput) {
-    imageInput.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files.length > 0) {
-            // Wait for image preview to load, then show UI
-            setTimeout(showMainUIAfterImageUpload, 300);
-        }
-    });
-}
+// // Patch image upload logic to call showMainUIAfterImageUpload
+// const imageInput = document.getElementById('imageInput');
+// if (imageInput) {
+//     imageInput.addEventListener('change', function(e) {
+//         if (e.target.files && e.target.files.length > 0) {
+//             // Wait for image preview to load, then show UI
+//             setTimeout(showMainUIAfterImageUpload, 300);
+//         }
+//     });
+// }
 
 function updateContainerSize(img) {
     const container = document.querySelector('.canvas-container');
@@ -436,18 +438,18 @@ async function displayImagePreview(img) {
     
     updateContainerSize(img);
     
-    // IMPORTANT: Re-setup zoom and drag events when image is displayed
-    setTimeout(() => {
-        const preview = document.getElementById('imagePreview');
-        const canvas = document.getElementById('resultCanvas');
+    // // IMPORTANT: Re-setup zoom and drag events when image is displayed
+    // setTimeout(() => {
+    //     const preview = document.getElementById('imagePreview');
+    //     const canvas = document.getElementById('resultCanvas');
         
-        if (preview && preview.style.display !== 'none') {
-            setupImageEvents(preview);
-        }
-        if (canvas && canvas.style.display !== 'none') {
-            setupImageEvents(canvas);
-        }
-    }, 100); // Small delay to ensure DOM is updated
+    //     if (preview && preview.style.display !== 'none') {
+    //         setupImageEvents(preview);
+    //     }
+    //     if (canvas && canvas.style.display !== 'none') {
+    //         setupImageEvents(canvas);
+    //     }
+    // }, 100); // Small delay to ensure DOM is updated
 }
 
 function displayOriginalImage() {
@@ -769,21 +771,21 @@ function downloadResult() {
 }
 
 function showLoading() {
-    document.getElementById('loadingSpinner').style.display = 'flex';
-    document.getElementById('progressContainer').style.display = 'block';
+    // document.getElementById('loadingSpinner').style.display = 'flex';
+    // document.getElementById('progressContainer').style.display = 'block';
 }
 
 function hideLoading() {
-    document.getElementById('loadingSpinner').style.display = 'none';
-    document.getElementById('progressContainer').style.display = 'none';
+    // document.getElementById('loadingSpinner').style.display = 'none';
+    // document.getElementById('progressContainer').style.display = 'none';
 }
 
 function updateProgress(percent, text) {
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
+    // const progressBar = document.getElementById('progressBar');
+    // const progressText = document.getElementById('progressText');
     
-    progressBar.style.width = percent + '%';
-    progressText.textContent = text;
+    // progressBar.style.width = percent + '%';
+    // progressText.textContent = text;
 }
 
 function showError(message) {
@@ -1067,12 +1069,12 @@ function setupZoomAndDrag() {
         }
     });
 
-    // Setup events for existing elements
-    const imagePreview = document.getElementById('imagePreview');
-    const resultCanvas = document.getElementById('resultCanvas');
+    // // Setup events for existing elements
+    // const imagePreview = document.getElementById('imagePreview');
+    // const resultCanvas = document.getElementById('resultCanvas');
     
-    setupImageEvents(imagePreview);
-    setupImageEvents(resultCanvas);
+    // setupImageEvents(imagePreview);
+    // setupImageEvents(resultCanvas);
 
     // Observer to setup events for dynamically created elements
     const observer = new MutationObserver(function(mutations) {
