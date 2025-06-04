@@ -62,6 +62,8 @@ window.addEventListener('load', function() {
 });
 
 function initializeApp() {
+    // Preload all background images immediately
+    preloadAllBackgroundImages();
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', async function() {
@@ -147,25 +149,18 @@ function setupEventListeners() {
 const USE_ULTIMATE_FLEXIBLE_SCANNING = true; // Set to true to enable scanning of additional folders
 
 // Enhanced file discovery function - attempts to find all image files in a folder
-async function discoverImageFiles(folderPath) {
-    const commonImageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'];
-    const discoveredFiles = [];
+// Modify the discoverImageFiles function in app.js
+function discoverImageFiles(folderPath) {
+    // Use a predefined list for each folder instead of testing each file
+    const knownImagesByFolder = {
+        'background/paper/': ['卷轴.jpg', '宣纸2.jpg', '宣纸3.jpg', '宣纸4.jpg', '竹编.jpg'],
+        'background/background_h/': ['背景1.jpg', '背景2.jpg'], // Add your horizontal images
+        'background/background_v/': ['背景3.jpg', '背景4.jpg'], // Add your vertical images
+        'app_background/': ['background_bamboo.jpg', 'background_bamboo_2.jpg', 'background_bamboo_3.jpg']
+    };
     
-    // Try common naming patterns and existing files
-    const potentialFiles = [
-        // Known existing files
-        // 'aged_scroll.jpg', 'bambthe oo_paper.jpg', 'paperbackground-1-scaled.jpg', 
-        // 'rice_paper.jpg', 'xuan_paper.jpg', 'background_h.jpg', 'lotus.jpg', 
-        // 'background_v.jpg',
-        '水墨.jpg', '水墨2.jpg', '粉荷.jpg', '鲤鱼.jpg',
-        '书卷.jpg', '水墨-竖.png', '水墨6.png',
-        '卷轴.jpg', '宣纸2.jpg', '宣纸3.jpg', '宣纸4.jpg', '竹编.jpg'
-        // Common naming patterns to try
-        // 'background.jpg', 'background.png', 'paper.jpg', 'paper.png',
-        // 'scroll.jpg', 'scroll.png', 'bamboo.jpg', 'bamboo.png',
-        // 'traditional.jpg', 'traditional.png', 'chinese.jpg', 'chinese.png',
-        // 'calligraphy.jpg', 'calligraphy.png', 'ink.jpg', 'ink.png'
-    ];
+    return Promise.resolve(knownImagesByFolder[folderPath] || []);
+}
     
     // Test each potential file
     for (const filename of potentialFiles) {
@@ -1585,4 +1580,26 @@ function showBirthdayGreeting() {
     setTimeout(() => {
         titleElement.textContent = originalText;
     }, 5000);
+}
+
+// Preload all images in the /background folder and subfolders
+function preloadAllBackgroundImages() {
+    const imagePaths = [
+        'background/paper/竹编.jpg',
+        'background/paper/宣纸4.jpg',
+        'background/paper/宣纸3.jpg',
+        'background/paper/宣纸2.jpg',
+        'background/paper/卷轴.jpg',
+        'background/background_v/水墨6.png',
+        'background/background_v/水墨-竖.png',
+        'background/background_v/书卷.jpg',
+        'background/background_h/鲤鱼.jpg',
+        'background/background_h/粉荷.jpg',
+        'background/background_h/水墨2.jpg',
+        'background/background_h/水墨.jpg'
+    ];
+    imagePaths.forEach(path => {
+        const img = new Image();
+        img.src = path;
+    });
 }
