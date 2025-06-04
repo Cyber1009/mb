@@ -78,7 +78,9 @@ function initializeApp() {
 
 function setupEventListeners() {
     // File input
-    document.getElementById('imageInput').addEventListener('change', handleImageUpload);    // Threshold slider with enhanced real-time performance
+    document.getElementById('imageInput').addEventListener('change', handleImageUpload);    
+    
+    // Threshold slider with enhanced real-time performance
     const thresholdSlider = document.getElementById('thresholdSlider');
     let thresholdDebounceTimer = null;
     let isProcessing = false;
@@ -101,7 +103,7 @@ function setupEventListeners() {
                 }
                 thresholdDebounceTimer = setTimeout(function() {
                     processImageRealtime();
-                }, 50); // Very short delay for smooth desktop experience
+                }, 20); // Very short delay for smooth desktop experience
             }
         }
     });
@@ -162,21 +164,6 @@ function discoverImageFiles(folderPath) {
     return Promise.resolve(knownImagesByFolder[folderPath] || []);
 }
     
-    // Test each potential file
-    for (const filename of potentialFiles) {
-        try {
-            const fullPath = folderPath + filename;
-            const exists = await testImageExists(fullPath);
-            if (exists) {
-                discoveredFiles.push(filename);
-            }
-        } catch (error) {
-            // Continue silently
-        }
-    }
-    
-    return discoveredFiles;
-}
 
 // Dynamic background options based on aspect ratio - scans filesystem
 async function getDynamicBackgrounds(aspectRatio) {
