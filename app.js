@@ -144,7 +144,7 @@ function setupEventListeners() {
 }
 
 // Configuration flag to enable/disable ultimate flexible scanning
-const USE_ULTIMATE_FLEXIBLE_SCANNING = false; // Set to true to enable scanning of additional folders
+const USE_ULTIMATE_FLEXIBLE_SCANNING = true; // Set to true to enable scanning of additional folders
 
 // Enhanced file discovery function - attempts to find all image files in a folder
 async function discoverImageFiles(folderPath) {
