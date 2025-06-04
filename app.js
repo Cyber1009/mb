@@ -154,14 +154,17 @@ async function discoverImageFiles(folderPath) {
     // Try common naming patterns and existing files
     const potentialFiles = [
         // Known existing files
-        'aged_scroll.jpg', 'bamboo_paper.jpg', 'paperbackground-1-scaled.jpg', 
-        'rice_paper.jpg', 'xuan_paper.jpg', 'background_h.jpg', 'lotus.jpg', 
-        'background_v.jpg',
+        // 'aged_scroll.jpg', 'bamboo_paper.jpg', 'paperbackground-1-scaled.jpg', 
+        // 'rice_paper.jpg', 'xuan_paper.jpg', 'background_h.jpg', 'lotus.jpg', 
+        // 'background_v.jpg',
+        '水墨.jpg', '水墨2.jpg', '粉荷.jpg', '鲤鱼.jpg',
+        '书卷.jpg', '水墨-竖.png', '水墨6.png',
+        '卷轴.jpg', '宣纸2.jpg', '宣纸3.jpg', '宣纸4.jpg', '竹编.jpg'
         // Common naming patterns to try
-        'background.jpg', 'background.png', 'paper.jpg', 'paper.png',
-        'scroll.jpg', 'scroll.png', 'bamboo.jpg', 'bamboo.png',
-        'traditional.jpg', 'traditional.png', 'chinese.jpg', 'chinese.png',
-        'calligraphy.jpg', 'calligraphy.png', 'ink.jpg', 'ink.png'
+        // 'background.jpg', 'background.png', 'paper.jpg', 'paper.png',
+        // 'scroll.jpg', 'scroll.png', 'bamboo.jpg', 'bamboo.png',
+        // 'traditional.jpg', 'traditional.png', 'chinese.jpg', 'chinese.png',
+        // 'calligraphy.jpg', 'calligraphy.png', 'ink.jpg', 'ink.png'
     ];
     
     // Test each potential file
