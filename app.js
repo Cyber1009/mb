@@ -154,7 +154,7 @@ async function discoverImageFiles(folderPath) {
     // Try common naming patterns and existing files
     const potentialFiles = [
         // Known existing files
-        // 'aged_scroll.jpg', 'bamboo_paper.jpg', 'paperbackground-1-scaled.jpg', 
+        // 'aged_scroll.jpg', 'bambthe oo_paper.jpg', 'paperbackground-1-scaled.jpg', 
         // 'rice_paper.jpg', 'xuan_paper.jpg', 'background_h.jpg', 'lotus.jpg', 
         // 'background_v.jpg',
         '水墨.jpg', '水墨2.jpg', '粉荷.jpg', '鲤鱼.jpg',
@@ -222,8 +222,7 @@ async function getDynamicBackgrounds(aspectRatio) {
         // Load backgrounds from different folders with enhanced discovery
         // For paper folder, we know the files, so we'll use the known list for speed
         const paperBackgrounds = await loadBackgroundsFromFolder('background/paper/', [
-            'aged_scroll.jpg', 'bamboo_paper.jpg', 'paperbackground-1-scaled.jpg', 
-            'rice_paper.jpg', 'xuan_paper.jpg'
+            '卷轴.jpg', '宣纸2.jpg', '宣纸3.jpg', '宣纸4.jpg', '竹编.jpg'
         ]);
 
         // For horizontal/vertical folders, use enhanced discovery to automatically find new files
