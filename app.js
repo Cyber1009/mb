@@ -21,9 +21,9 @@ let isTeaPouring = false; // Track teapot pouring state
 
 // Background options - Traditional Chinese calligraphy inspired
 const baseBackgroundOptions = [
-    { name: 'Original', value: 'original', color: 'transparent', isOriginal: true },
-    { name: 'Pure White', value: 'default', color: '#ffffff' },
-    { name: 'Rice Paper', value: 'rice', color: '#faf8f3' },
+    { name: '原图', value: 'original', color: 'transparent', isOriginal: true },
+    { name: '雪白', value: 'default', color: '#ffffff' },
+    { name: '宣纸', value: 'rice', color: '#faf8f3' },
     // Commented out additional single color backgrounds
     // { name: 'Aged Parchment', value: 'parchment', color: '#f5f1e8' },
     // { name: 'Silk Scroll', value: 'silk', color: '#f7f3e9' },

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Upload Button Test</title>
+    <style>
+        .controls-combined-row {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            min-height: 120px;
+            justify-content: flex-end;
+            border: 2px solid blue;
+            margin: 20px;
+        }
+
+        .upload-section-compact {
+            flex-shrink: 0;
+            order: 2;
+            background: lightcoral;
+            padding: 10px;
+        }
+
+        .upload-section-compact .upload-icon-wrapper {
+            justify-content: flex-end !important;
+            background: lightgreen;
+            padding: 5px;
+        }
+
+        .upload-icon-compact {
+            width: 120px !important;
+            height: 120px !important;
+            background: yellow;
+            display: block;
+        }
+
+        .threshold-section-compact {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 120px;
+            order: 1;
+            margin-right: auto;
+            background: lightblue;
+            padding: 10px;
+        }        /* Mobile responsive adjustments for combined row */
+        @media (max-width: 768px) {
+            .controls-combined-row {
+                flex-direction: row; /* Keep row layout instead of column */
+                gap: 1rem;
+                min-height: auto;
+                justify-content: flex-end;
+                align-items: center;
+                background: pink;
+            }
+
+            .upload-section-compact {
+                flex-shrink: 0;
+                order: 2;
+                width: auto;
+                background: orange;
+            }
+
+            .upload-section-compact .upload-icon-wrapper {
+                justify-content: flex-end !important;
+                width: auto;
+            }
+
+            .threshold-section-compact {
+                flex: 1;
+                min-height: auto;
+                order: 1;
+                max-width: calc(100% - 120px);
+                background: lightcyan;
+            }
+
+            .upload-icon-compact {
+                width: 100px !important;
+                height: 100px !important;
+            }
+        }        @media (max-width: 480px) {
+            .controls-combined-row {
+                gap: 0.5rem;
+                justify-content: flex-end;
+            }
+
+            .upload-section-compact {
+                flex-shrink: 0;
+            }
+
+            .threshold-section-compact {
+                max-width: calc(100% - 90px);
+            }
+
+            .upload-icon-compact {
+                width: 80px !important;
+                height: 80px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Mobile Upload Button Test</h1>
+    <p>Resize window or use browser dev tools to test mobile view</p>
+    
+    <div class="controls-combined-row">
+        <div class="upload-section-compact">
+            <div class="upload-icon-wrapper">
+                <div class="upload-icon-compact">UPLOAD</div>
+            </div>
+        </div>
+
+        <div class="threshold-section-compact">
+            <div>Threshold Section</div>
+        </div>
+    </div>    <p>Desktop: Upload should be on the right, threshold takes remaining space</p>
+    <p>Mobile: Upload should stay on the right on SAME ROW, threshold takes remaining space but leaves room for upload button</p>
+</body>
+</html>
